@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"paths": {
+			"@mariozechner/pi-coding-agent": ["./tests/stubs/@mariozechner/pi-coding-agent.ts"],
+			"@mariozechner/pi-ai": ["./tests/stubs/@mariozechner/pi-ai.ts"],
+			"@mariozechner/pi-tui": ["./tests/stubs/@mariozechner/pi-tui.ts"],
+			"@sinclair/typebox/value": ["./tests/stubs/@sinclair/typebox/value.ts"],
+			"@sinclair/typebox": ["./tests/stubs/@sinclair/typebox.ts"],
+			"typebox": ["./tests/stubs/@sinclair/typebox.ts"]
+		}
+	},
+	"include": ["tests/**/*.ts", "extensions/**/*.ts"]
+}

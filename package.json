@@ -1,0 +1,29 @@
+{
+	"name": "ruttybob",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Pi extensions: fork-to-back, pi-auto-rename, pi-quota, soft-red-header, system-prompt-template",
+	"keywords": [
+		"pi-package"
+	],
+	"license": "MIT",
+	"author": "Sergey Kostov",
+	"pi": {
+		"extensions": [
+			"./extensions"
+		],
+		"skills": [
+			"./extensions/system-prompt-template/skills"
+		]
+	},
+	"dependencies": {
+		"@mariozechner/pi-tui": "*"
+	},
+	"devDependencies": {
+		"vitest": "^4.1.5",
+		"typescript": "^6.0.3"
+	},
+	"scripts": {
+		"test": "vitest run"
+	}
+}

@@ -1,0 +1,9 @@
+{
+  "name": "pi-quota",
+  "version": "1.0.0",
+  "description": "Pi extension — unified quota dashboard for OpenRouter and ZAI with tab switching",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
