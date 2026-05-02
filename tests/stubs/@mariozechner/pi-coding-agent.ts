@@ -208,6 +208,13 @@ export interface TruncateResult {
 	totalLines: number;
 }
 
+export function withFileMutationQueue<T>(
+	_filePath: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	return fn();
+}
+
 export function truncateHead(
 	text: string,
 	_options?: { maxLines?: number; maxBytes?: number },

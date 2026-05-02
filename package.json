@@ -13,7 +13,8 @@
 			"./extensions"
 		],
 		"skills": [
-			"./extensions/system-prompt-template/skills"
+			"./extensions/system-prompt-template/skills",
+			"./extensions/pi-ralph-wiggum/skills"
 		]
 	},
 	"dependencies": {

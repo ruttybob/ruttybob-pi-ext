@@ -197,8 +197,8 @@ describe("ralph-wiggum — ralph_start tool", () => {
 		expect(result.content[0].text).toContain(
 			"my-loop",
 		);
-		// terminate: true — не нужен follow-up LLM call
-		expect(result.terminate).toBe(true);
+		// terminate не true — агент делает follow-up
+		expect(result.terminate).toBeFalsy();
 		// spawnChildSession был вызван ровно 1 раз
 		expect(mockSpawn).toHaveBeenCalledTimes(1);
 	});
@@ -299,7 +299,7 @@ describe("ralph-wiggum — ralph_start tool", () => {
 			ctx,
 		);
 
-		expect(result.terminate).toBe(true);
+		expect(result.terminate).toBeFalsy();
 		expect(result.content[0].text).toContain(
 			"Max iterations",
 		);

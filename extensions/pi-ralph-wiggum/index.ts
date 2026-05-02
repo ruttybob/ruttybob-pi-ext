@@ -34,6 +34,14 @@ import {
 } from "./files.js";
 import { buildSystemPromptAppend } from "./prompt-builder.js";
 import { spawnChildSession } from "./child-session.js";
+import {
+	createProgressState,
+	handleEvent,
+	renderWidget,
+	formatStatusText,
+	RENDER_THROTTLE_MS,
+	type ProgressState,
+} from "./progress-display.js";
 
 // --- Типы ---
 
@@ -289,6 +297,10 @@ export default function (pi: ExtensionAPI) {
 
 			abortController = new AbortController();
 
+			// Прогресс-трекинг для текущей итерации
+			const progressState = createProgressState();
+			let lastRenderTime = 0;
+
 			let childResult;
 			try {
 				childResult = await spawnChildSession({
@@ -296,6 +308,16 @@ export default function (pi: ExtensionAPI) {
 					systemPromptAppend: systemAppend,
 					prompt,
 					signal: abortController.signal,
+					onMessage: ctx.hasUI
+						? (event) => {
+								handleEvent(progressState, event);
+								const now = Date.now();
+								if (now - lastRenderTime >= RENDER_THROTTLE_MS) {
+									lastRenderTime = now;
+									updateUI(ctx, progressState);
+								}
+							}
+						: undefined,
 				});
 			} catch (err: any) {
 				state.status = "paused";
@@ -1194,7 +1216,7 @@ Examples:
 					iterations: state.iteration,
 					status: result.status,
 				},
-				terminate: true,
+				// terminate: false — агент делает follow-up LLM call с результатом loop
 			};
 		},
 	});
