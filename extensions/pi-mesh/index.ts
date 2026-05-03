@@ -18,6 +18,8 @@ import * as reservations from "./reservations.js";
 import * as messaging from "./messaging.js";
 import * as feed from "./feed.js";
 import * as tracking from "./tracking.js";
+import { toggleOff, toggleOn, MESH_TOOL_NAMES } from "./toggle.js";
+import type { ToggleDeps } from "./toggle.js";
 
 export default function piMeshExtension(pi: ExtensionAPI) {
   // ===========================================================================
@@ -607,6 +609,62 @@ export default function piMeshExtension(pi: ExtensionAPI) {
   }
 
   // ===========================================================================
+  // Command: /mesh-tools (toggle)
+  // ===========================================================================
+
+  function buildToggleDeps(ctx: ExtensionContext): ToggleDeps {
+    return {
+      pi,
+      state,
+      dirs,
+      ctx,
+      deliverMessage,
+      updateStatusBar,
+      onRegistered: hooks.onRegistered
+        ? async (s, c, a) => hooks.onRegistered?.(s, c, buildHookActions(c))
+        : undefined,
+      startHooksPollTimer: hooks.onPollTick
+        ? async (c) => startHooksPollTimer(c)
+        : undefined,
+
+      unregister: registry.unregister,
+      stopWatcher: messaging.stopWatcher,
+      startWatcher: messaging.startWatcher,
+      register: registry.register,
+      removeAllReservations: reservations.removeAllReservations,
+      logEvent: feed.logEvent,
+      pruneFeed: feed.pruneFeed,
+      getActiveAgents: registry.getActiveAgents,
+      extractFolder: registry.extractFolder,
+    };
+  }
+
+  pi.registerCommand("mesh-tools", {
+    description: "Toggle mesh participation on/off",
+    async handler(_args, ctx) {
+      if (!ctx.hasUI) return;
+
+      const deps = buildToggleDeps(ctx);
+
+      if (state.registered) {
+        const res = toggleOff(deps);
+        if (res) {
+          ctx.ui.notify(res.message, "info");
+        } else {
+          ctx.ui.notify("Not in mesh", "info");
+        }
+      } else {
+        const res = toggleOn(deps);
+        if (res) {
+          ctx.ui.notify(res.message, res.enabled ? "success" : "error");
+        } else {
+          ctx.ui.notify("Already in mesh", "info");
+        }
+      }
+    },
+  });
+
+  // ===========================================================================
   // Command: /mesh
   // ===========================================================================
 
@@ -614,18 +672,6 @@ export default function piMeshExtension(pi: ExtensionAPI) {
     description: "Open mesh coordination overlay",
     handler: async (_args, ctx) => {
       if (!ctx.hasUI) return;
-
-      // Auto-join if not registered
-      if (!state.registered) {
-        if (!registry.register(state, dirs, ctx)) {
-          ctx.ui.notify("Failed to join mesh", "error");
-          return;
-        }
-        messaging.startWatcher(state, dirs, deliverMessage);
-        updateStatusBar(ctx);
-        await hooks.onRegistered?.(state, ctx, buildHookActions(ctx));
-        await startHooksPollTimer(ctx);
-      }
 
       // Import and show overlay
       const { MeshOverlay } = await import("./overlay.js");
@@ -726,38 +772,46 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       config.autoRegister ||
       matchesAutoRegisterPath(process.cwd(), config.autoRegisterPaths);
 
-    if (!shouldAutoRegister) return;
+    if (shouldAutoRegister) {
+      dirs = registry.resolveDirs(ctx.cwd ?? process.cwd());
 
-    dirs = registry.resolveDirs(ctx.cwd ?? process.cwd());
+      if (registry.register(state, dirs, ctx)) {
+        messaging.startWatcher(state, dirs, deliverMessage);
+        updateStatusBar(ctx);
+        feed.pruneFeed(dirs, config.feedRetention);
+        feed.logEvent(dirs, state.agentName, "join");
 
-    if (registry.register(state, dirs, ctx)) {
-      messaging.startWatcher(state, dirs, deliverMessage);
-      updateStatusBar(ctx);
-      feed.pruneFeed(dirs, config.feedRetention);
-      feed.logEvent(dirs, state.agentName, "join");
+        await hooks.onRegistered?.(state, ctx, buildHookActions(ctx));
+        await startHooksPollTimer(ctx);
 
-      await hooks.onRegistered?.(state, ctx, buildHookActions(ctx));
-      await startHooksPollTimer(ctx);
+        // Inject context message so the LLM knows its mesh identity
+        if (config.contextMode !== "none") {
+          const folder = registry.extractFolder(process.cwd());
+          const branchPart = state.gitBranch ? ` on ${state.gitBranch}` : "";
+          const peers = registry.getActiveAgents(state, dirs);
+          const peerList =
+            peers.length > 0
+              ? ` Peers: ${peers.map((a) => a.name).join(", ")}.`
+              : "";
 
-      // Inject context message so the LLM knows its mesh identity
-      if (config.contextMode !== "none") {
-        const folder = registry.extractFolder(process.cwd());
-        const branchPart = state.gitBranch ? ` on ${state.gitBranch}` : "";
-        const peers = registry.getActiveAgents(state, dirs);
-        const peerList =
-          peers.length > 0
-            ? ` Peers: ${peers.map((a) => a.name).join(", ")}.`
-            : "";
-
-        pi.sendMessage(
-          {
-            customType: "mesh_context",
-            content: `You are "${state.agentName}" in ${folder}${branchPart}.${peerList} Use mesh_peers to check who's active, mesh_reserve to claim files, mesh_send to message agents.`,
-            display: false,
-          },
-          { triggerTurn: false }
-        );
+          pi.sendMessage(
+            {
+              customType: "mesh_context",
+              content: `You are "${state.agentName}" in ${folder}${branchPart}.${peerList} Use mesh_peers to check who's active, mesh_reserve to claim files, mesh_send to message agents.`,
+              display: false,
+            },
+            { triggerTurn: false }
+          );
+        }
       }
+    }
+
+    // If not registered at startup, deactivate mesh tools so the LLM doesn't see them.
+    // They'll be re-activated via /mesh-tools toggle if the user joins later.
+    if (!state.registered) {
+      const current = pi.getActiveTools() as string[];
+      const filtered = current.filter((name) => !MESH_TOOL_NAMES.includes(name));
+      pi.setActiveTools(filtered);
     }
   });
 
