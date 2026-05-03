@@ -18,6 +18,6 @@
 ### Changed
 
 - **side-agents**: убрана LLM-зависимость — slug генерируется эвристикой, kickoff prompt ссылается на session_query вместо LLM-саммари, убраны «Press any key» из launch-скрипта, добавлена file-based координация poller/dedup для hot-reload
-- **pi-ralph-wiggum**: обновлён `updateUI` — поддержка live-прогресса через `ProgressState`, виджет теперь рендерит `formatStatusText` / `renderWidget` при наличии прогресса
+- **pi-ralph-wiggum**: добавлен `disable-model-invocation: true` в SKILL.md wiggummy
 - **prompts**: убраны дублирующие языковые инструкции из файлов промптов (commit, discuss, explore, plan-detailed, plan) — язык теперь задаётся через AGENTS.md
 - **package.json**: добавлена зависимость `@sinclair/typebox`, добавлен скрипт `test:integration:side-agents`, подключены навыки `side-agents`
