@@ -1,0 +1,57 @@
+---
+description: Explore and explain code — trace logic, untangle architecture, document findings to .explore/
+argument-hint: "<path-or-concept>"
+---
+
+**Язык:** Все пояснения, комментарии, заголовки и текст на выходе — **обязательно на русском языке**. Код и технические идентификаторы остаются на английском.
+
+Your job is to deeply explore and explain a piece of code, a concept, a module, or an architectural pattern in the current codebase. The goal is understanding — not editing, not refactoring, not fixing — just making sense of things.
+
+**Target** — determine what to explore from `$@`:
+- File or directory path (e.g. `src/auth/`, `lib/parser.ts`): explore that area
+- Function/class/type name (e.g. `parseConfig`, `UserRepository`): find where it's defined and trace how it works
+- Concept (e.g. "how auth works", "error handling strategy", "data flow from API to UI"): find relevant code and explain the concept end-to-end
+- No argument: explore the current project's entry point and overall architecture
+
+**Phase 1: Locate.** Find the relevant code:
+- Use `grep`, `rg`, or file reads to locate definitions, usages, imports
+- For named targets: find the definition, then all call sites and references
+- For conceptual targets: identify all files and modules involved
+- Build a mental map of what reads what, what calls what, what depends on what
+
+**Phase 2: Read and trace.** Read the code thoroughly:
+- Read the target files in full, not just signatures — the interesting stuff is in the implementation
+- Trace the execution path: entry point → intermediate steps → side effects / outputs
+- Follow imports across files and directories — don't stop at file boundaries
+- Pay attention to types, interfaces, and contracts — they encode assumptions
+- Look for edge cases, error paths, and non-obvious branches
+- Check tests to understand expected behavior — tests are documentation
+
+**Phase 3: Explain.** Produce a structured explanation:
+1. **Summary** — one-paragraph plain-language summary of what this thing does and why it exists. Write it so someone who has never seen this code could understand it.
+2. **How it works** — step-by-step walkthrough of the execution flow. Not line-by-line — focus on the meaningful stages. Include code snippets for key moments.
+3. **Data flow** — what goes in, what comes out, what gets transformed along the way. If there are intermediate representations or state changes, show them.
+4. **Dependencies and callers** — who calls this, what does this call, what external dependencies does it rely on. Show the dependency graph.
+5. **Design decisions** — why is it structured this way? What alternatives exist? What constraints shaped the current design? Infer from code structure if not documented.
+6. **Gotchas and non-obvious behavior** — things that would surprise a reader. Implicit contracts, ordering dependencies, side effects, things that look wrong but are intentional (and why).
+7. **Related areas** — what else in the codebase is connected to this that a reader should also look at.
+
+**Phase 4: Save findings.** Write the explanation to `.explore/` for future reference:
+- Create `.explore/` directory if it doesn't exist
+- Filename: derive from the target — e.g., `auth-flow.md`, `parser-architecture.md`, `config-parsing.md`
+- Use clean markdown with the same structure as Phase 3
+- Include a frontmatter header with the date and target: `<!-- explored: 2026-04-27 | target: src/auth/ -->`
+- If a file for this target already exists in `.explore/`, update it — don't create duplicates
+- Add `.explore/` to `.gitignore` if not already present (these are personal notes, not project artifacts)
+- After saving, open the file in a new Ghostty terminal for reading:
+  ```
+  open -a mods $file
+  ```
+
+**Depth over breadth.** If the target is large, go deep on the most important parts rather than shallow on everything. A thorough explanation of the core 20% is more valuable than a surface-level tour of 100%.
+
+**Answer follow-up questions.** After the initial explanation, invite the user to ask follow-up questions about anything that wasn't clear. This is a conversation, not a one-shot report.
+
+<goal>
+$@
+</goal>
