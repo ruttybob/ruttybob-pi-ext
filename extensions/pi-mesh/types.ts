@@ -18,6 +18,7 @@ export interface MeshConfig {
   stuckThreshold: number;
   autoStatus: boolean;
   hooksModule?: string;
+  agentName?: string;
 }
 
 // =============================================================================

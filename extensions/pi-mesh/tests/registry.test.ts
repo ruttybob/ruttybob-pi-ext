@@ -148,4 +148,32 @@ describe("registry", () => {
     // Now it should be set
     expect(state.agentName).toBe("agent-1");
   });
+
+  it("uses configName when no PI_AGENT_NAME is set", () => {
+    const dirs = resolveDirs(tmpDir);
+    const state = makeState();
+    const ok = register(state, dirs, makeCtx(), "my-custom-name");
+
+    expect(ok).toBe(true);
+    expect(state.agentName).toBe("my-custom-name");
+  });
+
+  it("prefers PI_AGENT_NAME over configName", () => {
+    const dirs = resolveDirs(tmpDir);
+    process.env.PI_AGENT_NAME = "env-name";
+    const state = makeState();
+    const ok = register(state, dirs, makeCtx(), "config-name");
+
+    expect(ok).toBe(true);
+    expect(state.agentName).toBe("env-name");
+  });
+
+  it("falls back to sequential when configName is not set", () => {
+    const dirs = resolveDirs(tmpDir);
+    const state = makeState();
+    const ok = register(state, dirs, makeCtx());
+
+    expect(ok).toBe(true);
+    expect(state.agentName).toBe("agent-1");
+  });
 });

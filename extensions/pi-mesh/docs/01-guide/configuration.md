@@ -90,6 +90,21 @@ Path to a module that exports lifecycle hooks. Relative paths are resolved again
 
 See [Lifecycle Hooks](../02-extend/hooks.md) for the full API.
 
+### `agentName`
+
+**Type:** `string` · **Default:** `undefined`
+
+Persistent agent name. When set, the agent registers with this name on every session start, instead of the auto-generated `{type}-{N}` pattern.
+
+Priority: `PI_AGENT_NAME` env var > `agentName` config > auto-generated.
+
+```json
+{
+  "autoRegister": true,
+  "agentName": "auth-worker"
+}
+```
+
 ## Config loading order
 
 pi-mesh checks for configuration in this order (highest to lowest priority):

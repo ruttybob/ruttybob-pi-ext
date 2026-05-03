@@ -6,7 +6,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import { wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -665,32 +665,158 @@ export default function piMeshExtension(pi: ExtensionAPI) {
   });
 
   // ===========================================================================
-  // Command: /mesh
+  // Command: /mesh-agents (notify)
   // ===========================================================================
 
-  pi.registerCommand("mesh", {
-    description: "Open mesh coordination overlay",
+  pi.registerCommand("mesh-agents", {
+    description: "Show mesh agents list as notification",
+    async handler(_args, ctx) {
+      if (!ctx.hasUI) return;
+      if (!state.registered) {
+        ctx.ui.notify("Not registered in mesh", "error");
+        return;
+      }
+
+      const thresholdMs = config.stuckThreshold * 1000;
+      const allAgents = registry.getAllAgents(state, dirs);
+
+      if (allAgents.length === 0) {
+        ctx.ui.notify("No agents in mesh", "info");
+        return;
+      }
+
+      const lines: string[] = [];
+      for (const agent of allAgents) {
+        const isSelf = agent.name === state.agentName;
+        const hasRes = (agent.reservations?.length ?? 0) > 0;
+        const computed = registry.computeStatus(
+          agent.activity?.lastActivityAt ?? agent.startedAt,
+          hasRes,
+          thresholdMs,
+        );
+        const indicator = STATUS_INDICATORS[computed.status];
+        const nameLabel = isSelf
+          ? `${agent.name} (you)`
+          : agent.name;
+
+        const parts: string[] = [`${indicator} ${nameLabel}`];
+        if (agent.model) parts.push(agent.model);
+        if (agent.gitBranch) parts.push(agent.gitBranch);
+        if (agent.activity?.currentActivity) {
+          parts.push(agent.activity.currentActivity);
+        } else if (computed.idleFor) {
+          parts.push(`${computed.status} ${computed.idleFor}`);
+        }
+        if (agent.reservations && agent.reservations.length > 0) {
+          parts.push(agent.reservations.map((r) => r.pattern).join(", "));
+        }
+        if (agent.statusMessage) parts.push(agent.statusMessage);
+
+        lines.push(parts.join(" | "));
+      }
+
+      ctx.ui.notify(lines.join("\n"), "info");
+    },
+  });
+
+  // ===========================================================================
+  // Command: /mesh-feed (notify)
+  // ===========================================================================
+
+  pi.registerCommand("mesh-feed", {
+    description: "Show mesh activity feed as notification",
     handler: async (_args, ctx) => {
       if (!ctx.hasUI) return;
+      if (!state.registered) {
+        ctx.ui.notify("Not registered in mesh", "error");
+        return;
+      }
 
-      // Import and show overlay
-      const { MeshOverlay } = await import("./overlay.js");
+      const events = feed.readEvents(dirs, config.feedRetention);
+      if (events.length === 0) {
+        ctx.ui.notify("No activity yet.", "info");
+        return;
+      }
+
+      const lines: string[] = [];
+      for (const event of events) {
+        lines.push(feed.formatEvent(event));
+      }
+
+      ctx.ui.notify(lines.join("\n"), "info");
+    },
+  });
+
+  // ===========================================================================
+  // Command: /mesh-chat (overlay)
+  // ===========================================================================
+
+  pi.registerCommand("mesh-chat", {
+    description: "Open mesh chat overlay",
+    handler: async (_args, ctx) => {
+      if (!ctx.hasUI) return;
+      if (!state.registered) {
+        ctx.ui.notify("Not registered in mesh", "error");
+        return;
+      }
+
+      const { ChatOverlay } = await import("./chat-overlay.js");
+      pi.events?.emit("custom-ui:shown", { timestamp: Date.now() });
+
       await ctx.ui.custom<void>(
         (tui, theme, _keybindings, done) => {
-          return new MeshOverlay(tui, theme, state, dirs, config, done);
+          return new ChatOverlay(tui, theme, state, dirs, config, done);
         },
         {
           overlay: true,
           overlayOptions: {
             anchor: "bottom-center",
             width: "100%",
-            margin: { bottom: 1 },
-            maxHeight: "60%",
+            margin: 0,
           },
-        }
+        },
       );
 
+      pi.events?.emit("custom-ui:hidden", { timestamp: Date.now() });
       updateStatusBar(ctx);
+    },
+  });
+
+  // ===========================================================================
+  // Command: /mesh-rename
+  // ===========================================================================
+
+  pi.registerCommand("mesh-rename", {
+    description: "Rename your agent in the mesh",
+    async handler(args, ctx) {
+      if (!ctx.hasUI) return;
+      if (!state.registered) {
+        ctx.ui.notify("Not registered in mesh", "error");
+        return;
+      }
+
+      const newName = (args ?? "").trim();
+      if (!newName) {
+        ctx.ui.notify("Usage: /mesh-rename <name>", "warning");
+        return;
+      }
+
+      messaging.stopWatcher(state);
+      const renameResult = registry.renameAgent(state, dirs, ctx, newName);
+      messaging.startWatcher(state, dirs, deliverMessage);
+      updateStatusBar(ctx);
+
+      if (!renameResult.success) {
+        const errorMessages: Record<string, string> = {
+          invalid_name: "Invalid name. Use letters, numbers, hyphens, underscores. Max 50 chars.",
+          same_name: `You are already "${newName}".`,
+          name_taken: `Name "${newName}" is taken by another live agent.`,
+        };
+        ctx.ui.notify(errorMessages[renameResult.error ?? ""] ?? `Rename failed: ${renameResult.error}`, "error");
+        return;
+      }
+
+      ctx.ui.notify(`Renamed to "${renameResult.newName}"`, "success");
     },
   });
 
@@ -775,7 +901,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
     if (shouldAutoRegister) {
       dirs = registry.resolveDirs(ctx.cwd ?? process.cwd());
 
-      if (registry.register(state, dirs, ctx)) {
+      if (registry.register(state, dirs, ctx, config.agentName)) {
         messaging.startWatcher(state, dirs, deliverMessage);
         updateStatusBar(ctx);
         feed.pruneFeed(dirs, config.feedRetention);

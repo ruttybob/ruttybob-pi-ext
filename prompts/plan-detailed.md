@@ -132,7 +132,7 @@ git commit -m "feat: add specific behavior"
 
 
 After saving:
-1. Use bash tool and Open the file in a new Ghostty terminal for reading:
+1. Use bash tool and Open the file in a mods app for reading:
    ```
    open -a mods <plan>
 

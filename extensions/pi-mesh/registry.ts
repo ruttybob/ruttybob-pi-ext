@@ -144,9 +144,11 @@ function generateNameSequential(agentType: string, dirs: Dirs): string | null {
  * Respects PI_AGENT_NAME env var for explicit naming,
  * otherwise falls back to sequential ({agentType}-1, -2, ...).
  */
-export function generateName(agentType: string, dirs: Dirs): string {
+export function generateName(agentType: string, dirs: Dirs, configName?: string): string {
   const explicitName = process.env.PI_AGENT_NAME;
   if (explicitName) return explicitName;
+
+  if (configName) return configName;
 
   return generateNameSequential(agentType, dirs) ?? `${agentType}-${process.pid}`;
 }
@@ -167,13 +169,14 @@ export function getRegistrationPath(state: MeshState, dirs: Dirs): string {
 export function register(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext
+  ctx: ExtensionContext,
+  configName?: string
 ): boolean {
   if (state.registered) return true;
 
   ensureDataDirs(dirs);
 
-  let registrationName = generateName(state.agentType, dirs);
+  let registrationName = generateName(state.agentType, dirs, configName);
   if (!isValidAgentName(registrationName)) return false;
 
   // Check for collision with live agent

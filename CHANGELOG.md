@@ -15,8 +15,17 @@
 - **package.json**: добавлена секция `prompts` — папка `./prompts` теперь входит в пакет расширений
 - **prompts**: добавлены файлы промптов — commit, discuss, explore, plan-detailed, plan
 
+### Added
+
+- **subagent**: расширение для делегирования задач вложенным агентам (agents, prompts, delegation chain)
+- **pi-mesh**: chat-overlay, feed-overlay, overlay-helpers, toggle — разбиение монолитного overlay на модули
+- **pi-mesh**: тесты для chat-overlay, feed-overlay, overlay-helpers, toggle
+- **prompts**: добавлены промпты explain-codebase и modernize-and-refactor
+
 ### Changed
 
+- **pi-mesh**: монолитный overlay.ts разбит на chat-overlay, feed-overlay, overlay-helpers и toggle
+- **prompts**: заменена ссылка на Ghostty → mods в plan и plan-detailed
 - **side-agents**: убрана LLM-зависимость — slug генерируется эвристикой, kickoff prompt ссылается на session_query вместо LLM-саммари, убраны «Press any key» из launch-скрипта, добавлена file-based координация poller/dedup для hot-reload
 - **pi-ralph-wiggum**: добавлен `disable-model-invocation: true` в SKILL.md wiggummy
 - **prompts**: убраны дублирующие языковые инструкции из файлов промптов (commit, discuss, explore, plan-detailed, plan) — язык теперь задаётся через AGENTS.md
