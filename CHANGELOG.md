@@ -8,6 +8,7 @@
 - **session-recap**: расширение для recap-сессий
 - **side-agents**: расширение для управления побочными агентами (spawn, check, wait, send)
 - **tests/side-agents**: интеграционные тесты (integration.test.mjs) и контрактные тесты инструментов (tool-contract.test.ts)
+- **package.json**: добавлена секция `prompts` — папка `./prompts` теперь входит в пакет расширений
 
 ### Changed
 

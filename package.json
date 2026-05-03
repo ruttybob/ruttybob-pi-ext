@@ -12,6 +12,9 @@
 		"extensions": [
 			"./extensions"
 		],
+		"prompts": [
+			"./prompts"
+		],
 		"skills": [
 			"./extensions/system-prompt-template/skills",
 			"./extensions/pi-ralph-wiggum/skills",
