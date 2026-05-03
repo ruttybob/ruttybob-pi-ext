@@ -22,6 +22,9 @@ import { createVisionAnalyzeImageTool } from './src/tools/vision-analyze-image-t
 import { createVisionAnalyzeVideoTool } from './src/tools/vision-analyze-video-tool.ts';
 import type { EnvSource } from './src/types.ts';
 import { createToggleManager } from './src/toggle.ts';
+import { createGlobalStateStore } from './src/global-state.ts';
+import { homedir } from 'node:os';
+import { resolve, join } from 'node:path';
 
 interface ExtensionOptions {
   env?: EnvSource;
@@ -72,6 +75,10 @@ export default function zaiToolsExtension(pi: ExtensionAPI, options?: ExtensionO
   }
 
   // --- Toggle command /zai-tools ---
+  const agentDir = process.env.PI_CODING_AGENT_DIR
+    ? resolve(process.env.PI_CODING_AGENT_DIR.replace(/^~/, homedir()))
+    : join(homedir(), '.pi', 'agent');
+  const globalState = createGlobalStateStore(agentDir);
   const toggle = createToggleManager(zaiToolNames);
 
   function applyToggleToActiveTools(): string[] {
@@ -90,6 +97,7 @@ export default function zaiToolsExtension(pi: ExtensionAPI, options?: ExtensionO
       const { enabled, newActiveTools } = toggle.toggle(pi.getActiveTools() as string[]);
       pi.setActiveTools(newActiveTools);
       pi.appendEntry('custom', { customType: 'zai-tools-state', enabled });
+      globalState.save(enabled);
       ctx.ui.notify(
         enabled ? 'zai-tools enabled' : 'zai-tools disabled',
         'info',
@@ -99,8 +107,20 @@ export default function zaiToolsExtension(pi: ExtensionAPI, options?: ExtensionO
 
   async function restoreFromBranch(_event: any, ctx: any) {
     const branch = ctx.sessionManager.getBranch();
-    const result = toggle.restoreFromEntries(branch);
-    if (result) {
+    const sessionResult = toggle.restoreFromEntries(branch);
+    if (sessionResult) {
+      // Session entry имеет приоритет (навигация по tree)
+      pi.setActiveTools(applyToggleToActiveTools());
+      return;
+    }
+
+    // Нет session entry — читаем глобальное состояние
+    const globalEnabled = globalState.load();
+    if (!globalEnabled) {
+      // Синхронизируем toggle manager с глобальным состоянием
+      toggle.restoreFromEntries([
+        { type: 'custom', customType: 'zai-tools-state', data: { enabled: false } },
+      ]);
       pi.setActiveTools(applyToggleToActiveTools());
     }
   }

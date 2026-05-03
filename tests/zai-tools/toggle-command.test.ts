@@ -2,10 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { createMockExtensionAPI } from '../test-helpers/mock-api.ts';
 import { createMockCommandContext } from '../test-helpers/mock-context.ts';
 import extension from '../../extensions/zai-tools/index.ts';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 describe('zai-tools /zai-tools toggle command', () => {
+  const testGlobalDir = join(tmpdir(), `zai-tools-cmd-test-${Date.now()}`);
+
+  afterEach(() => {
+    rmSync(testGlobalDir, { recursive: true, force: true });
+  });
+
   function setup() {
     const pi = createMockExtensionAPI();
 
@@ -18,18 +27,29 @@ describe('zai-tools /zai-tools toggle command', () => {
     });
 
     // Загрузить расширение с одним модулем для простоты
-    extension(pi, {
-      env: {
-        ZAI_API_KEY: 'test-key',
-        ZAI_ENABLED_MODULES: 'search',
-      },
-    });
+    // Переопределяем PI_CODING_AGENT_DIR для изоляции тестов
+    const origAgentDir = process.env.PI_CODING_AGENT_DIR;
+    process.env.PI_CODING_AGENT_DIR = testGlobalDir;
+    try {
+      extension(pi, {
+        env: {
+          ZAI_API_KEY: 'test-key',
+          ZAI_ENABLED_MODULES: 'search',
+        },
+      });
+    } finally {
+      if (origAgentDir !== undefined) {
+        process.env.PI_CODING_AGENT_DIR = origAgentDir;
+      } else {
+        delete process.env.PI_CODING_AGENT_DIR;
+      }
+    }
 
     // После загрузки расширения — zai-tools добавлены в activeTools
     const registeredTools = (pi as any)._calls.registerTool.map((t: any) => t.name);
     activeTools = [...activeTools, ...registeredTools];
 
-    return { pi, registeredTools, getActiveTools: () => activeTools };
+    return { pi, registeredTools, getActiveTools: () => activeTools, testGlobalDir };
   }
 
   it('registers the /zai-tools command', () => {
@@ -136,5 +156,54 @@ describe('zai-tools /zai-tools toggle command', () => {
     expect((pi as any).setActiveTools).toHaveBeenCalledWith(
       expect.not.arrayContaining(registeredTools),
     );
+  });
+
+  it('toggle persists state to global file', async () => {
+    const { pi, testGlobalDir } = setup();
+
+    const cmd = (pi as any)._calls.registerCommand.find((c: any) => c.name === 'zai-tools');
+    const ctx = createMockCommandContext();
+
+    // Toggle off
+    await cmd.options.handler('', ctx);
+
+    // Проверяем что файл создан с enabled: false
+    const { readFileSync } = await import('node:fs');
+    const data = JSON.parse(readFileSync(join(testGlobalDir, 'zai-tools-state.json'), 'utf-8'));
+    expect(data.enabled).toBe(false);
+
+    // Toggle on
+    await cmd.options.handler('', ctx);
+
+    const data2 = JSON.parse(readFileSync(join(testGlobalDir, 'zai-tools-state.json'), 'utf-8'));
+    expect(data2.enabled).toBe(true);
+  });
+
+  it('session_start restores disabled state from global file when no session entry', async () => {
+    const { pi } = setup();
+
+    const cmd = (pi as any)._calls.registerCommand.find((c: any) => c.name === 'zai-tools');
+    const toggleCtx = createMockCommandContext();
+
+    // Toggle off — сохраняет в global file
+    await cmd.options.handler('', toggleCtx);
+
+    // Новый session_start без session entries (пустая ветка) —
+    // должен восстановить disabled из глобального файла
+    const freshCtx = createMockCommandContext({
+      sessionManager: {
+        getBranch: () => [],
+      },
+    } as any);
+
+    // Сбросим mock counters
+    (pi as any).setActiveTools.mockClear();
+
+    await (pi as any)._fire('session_start', {}, freshCtx);
+
+    // После restore из файла zai-tools должны быть убраны
+    const lastCall = (pi as any).setActiveTools.mock.calls.at(-1)?.[0] as string[];
+    expect(lastCall).not.toContain('zai_web_search');
+    expect(lastCall).toContain('read');
   });
 });

@@ -5,6 +5,9 @@
 ### Added
 
 - **zai-tools**: slash-команда `/zai-tools` для мгновенного toggle всех инструментов расширения (on/off). Состояние персистентно в рамках сессии и восстанавливается при навигации по session tree
+- **zai-tools**: глобальное состояние toggle (файл `zai-tools-state.json`) — при старте сессии без session entry восстанавливается из глобального файла
+- **zai-tools**: MCP-клиент (remote + stdio), сервисы (vision, web-search, web-reader, zread), инструменты, утилиты (cache, rate-limit, retry, json-parse, truncation)
+- **zai-tools**: полный набор тестов — cache, config, extension, global-state, json-parse, rate-limit, retry, toggle, truncation, vision-service, web-search-service, zread-service, tool-onUpdate
 - **pi-mesh**: расширение для mesh-сети агентов (overlay, registry, feed, messaging, tracking, reservations)
 - **session-recap**: расширение для recap-сессий
 - **side-agents**: расширение для управления побочными агентами (spawn, check, wait, send)

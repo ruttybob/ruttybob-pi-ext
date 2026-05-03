@@ -76,6 +76,8 @@ export interface AgentToolResult {
 	[key: string]: unknown;
 }
 
+export type AgentToolUpdateCallback = (update: unknown) => void;
+
 export interface MessageRenderer {
 	[key: string]: unknown;
 }

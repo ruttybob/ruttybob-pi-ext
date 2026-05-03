@@ -23,6 +23,7 @@
 	},
 	"dependencies": {
 		"@mariozechner/pi-tui": "*",
+		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@sinclair/typebox": "^0.34.49"
 	},
 	"devDependencies": {
