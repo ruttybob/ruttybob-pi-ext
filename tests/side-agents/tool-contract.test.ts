@@ -789,34 +789,39 @@ describe("agent-send interrupt prefix stripping", () => {
 // ---------------------------------------------------------------------------
 
 function buildSimpleKickoffPrompt(task: string, parentSession: string | undefined) {
-	const sessionSuffix = parentSession ? `\n\nParent Pi session: ${parentSession}` : "";
-	return task + sessionSuffix;
+	return [
+		task,
+		"",
+		"## Parent session",
+		parentSession ? `- ${parentSession}` : "- (unknown)",
+		"",
+		"If you need context from the parent conversation, use the session_query tool",
+		"with the parent session path above to look up specific information.",
+	].join("\n");
 }
 
 describe("kickoff prompt", () => {
-	test("appends parent session path when available", () => {
+	test("includes parent session path when available", () => {
 		const result = buildSimpleKickoffPrompt("Fix the bug", "/home/user/.pi/agent/sessions/abc123/session.jsonl");
 		expect(result.startsWith("Fix the bug")).toBeTruthy();
-		expect(result).toContain("Parent Pi session: /home/user/.pi/agent/sessions/abc123/session.jsonl");
+		expect(result).toContain("## Parent session");
+		expect(result).toContain("- /home/user/.pi/agent/sessions/abc123/session.jsonl");
 	});
 
-	test("no suffix when parent session is undefined", () => {
+	test("shows (unknown) when parent session is undefined", () => {
 		const result = buildSimpleKickoffPrompt("Fix the bug", undefined);
-		expect(result).toBe("Fix the bug");
+		expect(result).toContain("- (unknown)");
 	});
 
-	test("no suffix when parent session is empty string", () => {
+	test("shows (unknown) when parent session is empty string", () => {
 		const result = buildSimpleKickoffPrompt("Fix the bug", "");
-		expect(result).toBe("Fix the bug");
+		expect(result).toContain("- (unknown)");
 	});
 
-	test("suffix is separated by blank line from task", () => {
+	test("includes session_query hint", () => {
 		const result = buildSimpleKickoffPrompt("Do something", "/tmp/session.jsonl");
-		const lines = result.split("\n");
-		expect(lines.length).toBeGreaterThanOrEqual(3);
-		expect(lines[0]).toBe("Do something");
-		expect(lines[1]).toBe("");
-		expect(lines[2].startsWith("Parent Pi session:")).toBeTruthy();
+		expect(result).toContain("session_query");
+		expect(result).toContain("## Parent session");
 	});
 });
 

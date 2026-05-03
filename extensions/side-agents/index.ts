@@ -1,9 +1,7 @@
-import { complete, type Message } from "@mariozechner/pi-ai";
-import { convertToLlm, serializeConversation } from "@mariozechner/pi-coding-agent";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -18,19 +16,6 @@ const REGISTRY_VERSION = 1;
 const CHILD_LINK_ENTRY_TYPE = "side-agent-link";
 const STATUS_UPDATE_MESSAGE_TYPE = "side-agent-status";
 const PROMPT_UPDATE_MESSAGE_TYPE = "side-agent-prompt";
-
-const SUMMARY_SYSTEM_PROMPT = `You are writing a minimal handoff summary for a background coding agent.
-
-Use the parent conversation only as context. Include only details that are directly relevant to the child task.
-
-If the parent conversation is unrelated to the child task, output exactly:
-NONE
-
-Preferred content (but only when relevant):
-- objective/constraints already established
-- decisions already made
-- key files/components to inspect
-- risks/caveats`;
 
 type AgentStatus =
 	| "allocating_worktree"
@@ -136,10 +121,19 @@ type AgentStatusSnapshot = {
 	tmuxWindowIndex?: number;
 };
 
+// File-based poller coordination: only the latest hot-reloaded instance runs a poller.
+// Each instance increments a generation counter; the poller checks it's still current.
+const POLLER_COORD_FILE = join(os.tmpdir(), "pi-side-agent-poller.json");
+let pollerGeneration = 0;
+
 let statusPollTimer: NodeJS.Timeout | undefined;
 let statusPollContext: ExtensionContext | undefined;
 let statusPollApi: ExtensionAPI | undefined;
 let statusPollInFlight = false;
+
+// File-based dedup for status transition messages across hot-reloaded instances.
+const DEDUP_FILE = join(os.tmpdir(), "pi-side-agent-dedup.json");
+const EMIT_DEDUP_WINDOW_MS = 2000;
 const statusSnapshotsByStateRoot = new Map<string, Map<string, AgentStatusSnapshot>>();
 let lastRenderedStatusLine: string | undefined;
 
@@ -180,10 +174,6 @@ const BACKLOG_SEPARATOR_RE = /^[-─—_=]{5,}$/u;
 const ANSI_CSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const ANSI_OSC_RE = /\x1b\][^\x07]*(?:\x07|\x1b\\)/g;
 const CONTROL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g;
-const SUMMARY_MAX_LINES = 10;
-const SUMMARY_MAX_CHARS = 700;
-const SUMMARY_NONE_RE = /^(?:none|n\/a|no relevant context(?: from parent session)?\.?|unrelated)\s*$/i;
-
 function resolveBacklogPathForRecord(stateRoot: string, record: AgentRecord): string {
 	if (record.logPath) return record.logPath;
 	if (record.runtimeDir) return join(record.runtimeDir, "backlog.log");
@@ -275,39 +265,11 @@ function truncateWithEllipsis(text: string, maxChars: number): string {
 	return `${text.slice(0, maxChars - 1)}…`;
 }
 
-function normalizeGeneratedSummary(raw: string): string {
-	const cleaned = stripTerminalNoise(raw).trim();
-	if (!cleaned) return "";
-
-	const fenced = cleaned.match(/^```(?:markdown|md)?\s*\n?([\s\S]*?)\n?```$/i);
-	const unfenced = (fenced ? fenced[1] : cleaned).trim();
-	if (!unfenced) return "";
-	if (SUMMARY_NONE_RE.test(unfenced)) return "";
-
-	const compactLines: string[] = [];
-	let previousBlank = false;
-	for (const rawLine of unfenced.replace(/\r\n?/g, "\n").split("\n")) {
-		const line = rawLine.trimEnd();
-		const blank = line.trim().length === 0;
-		if (blank) {
-			if (previousBlank) continue;
-			previousBlank = true;
-		} else {
-			previousBlank = false;
-		}
-		compactLines.push(line);
-		if (compactLines.length >= SUMMARY_MAX_LINES) break;
-	}
-
-	const summary = compactLines.join("\n").trim();
-	if (!summary || SUMMARY_NONE_RE.test(summary)) return "";
-	return truncateWithEllipsis(summary, SUMMARY_MAX_CHARS);
-}
-
 function summarizeTask(task: string): string {
 	const collapsed = stripTerminalNoise(task).replace(/\s+/g, " ").trim();
 	return truncateWithEllipsis(collapsed, TASK_PREVIEW_MAX_CHARS);
 }
+
 
 function isBacklogSeparatorLine(line: string): boolean {
 	return BACKLOG_SEPARATOR_RE.test(line.trim());
@@ -652,55 +614,6 @@ function slugFromTask(task: string): string {
 	return slug || "agent";
 }
 
-/** Generate a slug via LLM, falling back to heuristic extraction from task text. */
-async function generateSlug(ctx: ExtensionContext, task: string): Promise<{ slug: string; warning?: string }> {
-	if (!ctx.model) {
-		return { slug: slugFromTask(task), warning: "No model available for slug generation; used heuristic fallback." };
-	}
-
-	try {
-		const userMessage: Message = {
-			role: "user",
-			content: [
-				{
-					type: "text",
-					text: task,
-				},
-			],
-			timestamp: Date.now(),
-		};
-
-		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (!auth.ok) {
-			return { slug: slugFromTask(task), warning: `Slug generation auth failed: ${auth.error}. Used heuristic fallback.` };
-		}
-		const response = await complete(
-			ctx.model,
-			{
-				systemPrompt:
-					"Generate a 2-3 word kebab-case slug summarizing the given task. Reply with ONLY the slug, nothing else. Examples: fix-auth-leak, add-retry-logic, update-readme",
-				messages: [userMessage],
-			},
-			{ apiKey: auth.apiKey, headers: auth.headers, maxTokens: 30 },
-		);
-
-		const raw = response.content
-			.filter((block): block is { type: "text"; text: string } => block.type === "text")
-			.map((block) => block.text)
-			.join("")
-			.trim();
-
-		const slug = sanitizeSlug(raw);
-		if (slug) return { slug };
-
-		return { slug: slugFromTask(task), warning: "LLM returned empty slug; used heuristic fallback." };
-	} catch (err) {
-		return {
-			slug: slugFromTask(task),
-			warning: `Slug generation failed: ${stringifyError(err)}. Used heuristic fallback.`,
-		};
-	}
-}
 
 /** Collect all agent IDs currently known in the registry or checked out as side-agent branches. */
 function existingAgentIds(registry: RegistryFile, repoRoot: string): Set<string> {
@@ -1083,72 +996,19 @@ async function allocateWorktree(options: {
 	};
 }
 
-async function buildKickoffPrompt(ctx: ExtensionContext, task: string, includeSummary: boolean): Promise<{ prompt: string; warning?: string }> {
+async function buildKickoffPrompt(ctx: ExtensionContext, task: string, _includeSummary: boolean): Promise<{ prompt: string; warning?: string }> {
 	const parentSession = ctx.sessionManager.getSessionFile();
-	const sessionSuffix = parentSession ? `\n\nParent Pi session: ${parentSession}` : "";
-	if (!includeSummary || !ctx.model) {
-		return { prompt: task + sessionSuffix };
-	}
+	const prompt = [
+		task,
+		"",
+		"## Parent session",
+		parentSession ? `- ${parentSession}` : "- (unknown)",
+		"",
+		"If you need context from the parent conversation, use the session_query tool",
+		"with the parent session path above to look up specific information.",
+	].join("\n");
 
-	const branch = ctx.sessionManager.getBranch();
-	const messages = branch
-		.filter((entry): entry is SessionEntry & { type: "message" } => entry.type === "message")
-		.map((entry) => entry.message);
-
-	if (messages.length === 0) {
-		return { prompt: task };
-	}
-
-	try {
-		const llmMessages = convertToLlm(messages);
-		const conversationText = serializeConversation(llmMessages);
-		const userMessage: Message = {
-			role: "user",
-			content: [
-				{
-					type: "text",
-					text: `## Parent conversation\n\n${conversationText}\n\n## Child task\n\n${task}`,
-				},
-			],
-			timestamp: Date.now(),
-		};
-
-		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (!auth.ok) throw new Error(`Auth failed for summary generation: ${auth.error}`);
-		const response = await complete(
-			ctx.model,
-			{ systemPrompt: SUMMARY_SYSTEM_PROMPT, messages: [userMessage] },
-			{ apiKey: auth.apiKey, headers: auth.headers },
-		);
-
-		const summary = normalizeGeneratedSummary(
-			response.content
-				.filter((block): block is { type: "text"; text: string } => block.type === "text")
-				.map((block) => block.text)
-				.join("\n"),
-		);
-
-		if (!summary) {
-			return { prompt: task + sessionSuffix };
-		}
-
-		const prompt = [
-			task,
-			"",
-			"## Parent session",
-			parentSession ? `- ${parentSession}` : "- (unknown)",
-			"",
-			"## Relevant parent context",
-			summary,
-		].join("\n");
-
-		return { prompt };
-	} catch (err) {
-		return {
-			prompt: task + sessionSuffix,
-			warning: `Failed to generate context summary: ${stringifyError(err)}. Started child with raw task only.`,
-		};
-	}
+	return { prompt };
 }
 
 function buildLaunchScript(params: {
@@ -1204,8 +1064,6 @@ if [[ -x "$START_SCRIPT" ]]; then
   if [[ "$start_exit" -ne 0 ]]; then
     echo "[side-agent] start script failed with code $start_exit"
     write_exit "$start_exit"
-    read -n 1 -s -r -p "[side-agent] Press any key to close this tmux window..." || true
-    echo
     tmux kill-window -t "$WINDOW_ID" || true
     exit "$start_exit"
   fi
@@ -1232,9 +1090,6 @@ if [[ "$exit_code" -eq 0 ]]; then
 else
   echo "[side-agent] Agent exited with code $exit_code."
 fi
-
-read -n 1 -s -r -p "[side-agent] Press any key to close this tmux window..." || true
-echo
 
 tmux kill-window -t "$WINDOW_ID" || true
 `;
@@ -1289,27 +1144,7 @@ function tmuxPipePaneToFile(windowId: string, logPath: string): void {
 	runOrThrow("tmux", ["pipe-pane", "-t", windowId, "-o", `cat >> ${shellQuote(logPath)}`]);
 }
 
-function tmuxSendLine(windowId: string, line: string): void {
-	runOrThrow("tmux", ["send-keys", "-t", windowId, line, "C-m"]);
-}
-
 /** Wait for a shell prompt to appear in a newly created tmux window. */
-async function tmuxWaitForShellReady(windowId: string, timeoutMs = 5000): Promise<void> {
-	const started = Date.now();
-	while (Date.now() - started < timeoutMs) {
-		const captured = run("tmux", ["capture-pane", "-p", "-t", windowId]);
-		if (captured.ok) {
-			const lines = captured.stdout.split(/\r?\n/).filter((l) => l.trim().length > 0);
-			// Look for a typical shell prompt ending in $, #, %, or >
-			if (lines.some((l) => /[\$#%>]\s*$/.test(l))) {
-				return;
-			}
-		}
-		await sleep(50);
-	}
-	// Timed out — proceed anyway rather than failing the whole agent start.
-}
-
 function tmuxInterrupt(windowId: string): void {
 	run("tmux", ["send-keys", "-t", windowId, "C-c"]);
 }
@@ -1665,9 +1500,7 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 			slug = sanitizeSlug(params.branchHint);
 			if (!slug) slug = slugFromTask(params.task);
 		} else {
-			const generated = await generateSlug(ctx, params.task);
-			slug = generated.slug;
-			if (generated.warning) aggregatedWarnings.push(generated.warning);
+			slug = slugFromTask(params.task);
 		}
 
 		await mutateRegistry(stateRoot, async (registry) => {
@@ -1709,6 +1542,11 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 		const launchScriptPath = join(runtimeDir, "launch.sh");
 		await atomicWrite(logPath, "");
 
+		const kickoff = await buildKickoffPrompt(ctx, params.task, params.includeSummary);
+		if (kickoff.warning) aggregatedWarnings.push(kickoff.warning);
+
+		await atomicWrite(promptPath, kickoff.prompt + "\n");
+
 		await mutateRegistry(stateRoot, async (registry) => {
 			const record = registry.agents[agentId];
 			if (!record) return;
@@ -1720,48 +1558,18 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 			record.exitFile = exitFile;
 			await setRecordStatus(stateRoot, record, "spawning_tmux");
 			record.warnings = [...(record.warnings ?? []), ...worktree.warnings];
+			await appendKickoffPromptToBacklog(stateRoot, record, kickoff.prompt);
 		});
-
-		const kickoff = await buildKickoffPrompt(ctx, params.task, params.includeSummary);
-		if (kickoff.warning) aggregatedWarnings.push(kickoff.warning);
-
-		await atomicWrite(promptPath, kickoff.prompt + "\n");
-		try {
-			await mutateRegistry(stateRoot, async (registry) => {
-				const record = registry.agents[agentId];
-				if (!record) return;
-				await appendKickoffPromptToBacklog(stateRoot, record, kickoff.prompt);
-			});
-		} catch {
-			// Best effort fallback when registry lock/update fails; write directly
-			// to the known backlog path without requiring registry mutation.
-			await appendKickoffPromptToBacklog(
-				stateRoot,
-				{
-					id: agentId,
-					task: params.task,
-					status: "spawning_tmux",
-					startedAt: now,
-					updatedAt: nowIso(),
-					runtimeDir,
-					logPath,
-				},
-				kickoff.prompt,
-			);
-		}
 
 		const resolvedModel = await resolveModelSpecForChild(ctx, params.model, pi.getThinkingLevel());
 		const modelSpec = resolvedModel.modelSpec;
 		if (resolvedModel.warning) aggregatedWarnings.push(resolvedModel.warning);
 
+		// Create tmux window first to obtain windowId, then write launch script
+		// with the correct windowId baked in, then start the script.
 		const tmuxSession = getCurrentTmuxSession();
 		const { windowId, windowIndex } = createTmuxWindow(tmuxSession, `agent-${agentId}`);
 		spawnedWindowId = windowId;
-
-		await updateWorktreeLock(worktree.worktreePath, {
-			tmuxWindowId: windowId,
-			tmuxWindowIndex: windowIndex,
-		});
 
 		const launchScript = buildLaunchScript({
 			agentId,
@@ -1778,15 +1586,16 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 		await atomicWrite(launchScriptPath, launchScript);
 		await fs.chmod(launchScriptPath, 0o755);
 
+		await updateWorktreeLock(worktree.worktreePath, {
+			tmuxWindowId: windowId,
+			tmuxWindowIndex: windowIndex,
+		});
+
 		tmuxPipePaneToFile(windowId, logPath);
-		// Wait for the shell in the new tmux window to be ready before sending
-		// commands — otherwise the keystrokes arrive before bash has initialised
-		// and are silently lost (displayed as text but never executed).
-		await tmuxWaitForShellReady(windowId);
-		// Run cd in the interactive pane shell first so Ctrl+Z in child Pi drops
-		// back to the child worktree prompt (not the parent worktree).
-		tmuxSendLine(windowId, `cd ${shellQuote(worktree.worktreePath)}`);
-		tmuxSendLine(windowId, `bash ${shellQuote(launchScriptPath)}`);
+		// Brief pause for the new shell to initialise (~100ms), then send the
+		// launch command. Much faster than the old tmuxWaitForShellReady polling.
+		await sleep(100);
+		runOrThrow("tmux", ["send-keys", "-t", windowId, `bash ${shellQuote(launchScriptPath)}`, "C-m"]);
 
 		await mutateRegistry(stateRoot, async (registry) => {
 			const record = registry.agents[agentId];
@@ -2135,6 +1944,18 @@ function emitStatusTransitions(pi: ExtensionAPI, ctx: ExtensionContext, transiti
 	if (isChildRuntime()) return;
 
 	for (const transition of transitions) {
+		const key = `${transition.id}:${transition.fromStatus}->${transition.toStatus}`;
+		const now = Date.now();
+		let deduped = false;
+		try {
+			const raw = readFileSync(DEDUP_FILE, "utf8");
+			const d = JSON.parse(raw);
+			if (d.key === key && now - d.at < EMIT_DEDUP_WINDOW_MS) deduped = true;
+		} catch { /* file doesn't exist yet */ }
+		if (deduped) continue;
+		try {
+			writeFileSync(DEDUP_FILE, JSON.stringify({ key, at: now }));
+		} catch { /* best effort */ }
 		const message = formatStatusTransitionMessage(transition, ctx.hasUI ? ctx.ui.theme : undefined);
 		pi.sendMessage(
 			{
@@ -2183,6 +2004,15 @@ function emitKickoffPromptMessage(pi: ExtensionAPI, started: StartAgentResult): 
 	);
 }
 
+function isLatestGeneration(): boolean {
+	try {
+		const raw = readFileSync(POLLER_COORD_FILE, "utf8");
+		return JSON.parse(raw).generation === pollerGeneration;
+	} catch {
+		return true;
+	}
+}
+
 async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionContext, options?: { emitTransitions?: boolean }): Promise<void> {
 	if (!ctx.hasUI) return;
 
@@ -2191,9 +2021,13 @@ async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionContext, options
 	const agents = Object.values(refreshed.agents).sort((a, b) => a.id.localeCompare(b.id));
 
 	if (options?.emitTransitions ?? true) {
+		// Only the latest hot-reloaded instance should emit transitions.
+		const isCurrentGen = isLatestGeneration();
 		const transitions = collectStatusTransitions(stateRoot, agents);
-		if (transitions.length > 0) {
+		if (transitions.length > 0 && isCurrentGen) {
 			emitStatusTransitions(pi, ctx, transitions);
+		} else if (transitions.length > 0) {
+			// Stale instance — still consume the snapshot to avoid re-emitting.
 		}
 	} else if (!statusSnapshotsByStateRoot.has(stateRoot)) {
 		collectStatusTransitions(stateRoot, agents);
@@ -2230,8 +2064,30 @@ function ensureStatusPoller(pi: ExtensionAPI, ctx: ExtensionContext): void {
 	statusPollApi = pi;
 	if (!ctx.hasUI) return;
 
+	// Read current generation and bump it — all older poller instances will
+	// see their generation is stale and stop firing.
+	try {
+		const raw = readFileSync(POLLER_COORD_FILE, "utf8");
+		pollerGeneration = (JSON.parse(raw).generation ?? 0) + 1;
+	} catch {
+		pollerGeneration = 1;
+	}
+	try {
+		writeFileSync(POLLER_COORD_FILE, JSON.stringify({
+			generation: pollerGeneration,
+			pid: process.pid,
+			createdAt: Date.now(),
+		}));
+	} catch { /* best effort */ }
+
 	if (!statusPollTimer) {
+		const myGen = pollerGeneration;
 		statusPollTimer = setInterval(() => {
+			// Stop firing if a newer instance has taken over.
+			try {
+				const raw = readFileSync(POLLER_COORD_FILE, "utf8");
+				if (JSON.parse(raw).generation !== myGen) return;
+			} catch { /* file gone — we're the only one */ }
 			if (statusPollInFlight || !statusPollContext || !statusPollApi) return;
 			statusPollInFlight = true;
 			void renderStatusLine(statusPollApi, statusPollContext)
