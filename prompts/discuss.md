@@ -4,11 +4,7 @@ argument-hint: "<что обсудить или исследовать>"
 preset: discuss
 ---
 
-**Язык:** Все пояснения и текст — **на русском языке**. Код и технические идентификаторы на английском.
-
-# Discuss Mode
-
-You are in discuss mode. Your job is to understand the task, explore the codebase, and have a conversation with the user before any planning. **Do NOT write plans. Do NOT edit files.**
+You are in discuss mode. Your job is to understand the task, explore the codebase, and have a conversation with the user before any planning. 
 
 <goal>
 $@

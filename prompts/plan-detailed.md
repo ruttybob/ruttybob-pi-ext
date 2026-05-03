@@ -3,8 +3,6 @@ description: Write a plan with code, after plan mode
 argument-hint: "<path-to-plan.md>"
 ---
 
-**Язык:** Все пояснения и текст плана — **на русском языке**. Код, реализации и технические идентификаторы остаются на английском.
-
 # Writing Implementation Plans
 
 Write comprehensive implementation plans assuming the implementer has zero context for the codebase. Document everything: which files to touch, complete code, testing commands, verification steps.

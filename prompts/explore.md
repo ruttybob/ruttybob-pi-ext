@@ -3,8 +3,6 @@ description: Explore and explain code — trace logic, untangle architecture, do
 argument-hint: "<path-or-concept>"
 ---
 
-**Язык:** Все пояснения, комментарии, заголовки и текст на выходе — **обязательно на русском языке**. Код и технические идентификаторы остаются на английском.
-
 Your job is to deeply explore and explain a piece of code, a concept, a module, or an architectural pattern in the current codebase. The goal is understanding — not editing, not refactoring, not fixing — just making sense of things.
 
 **Target** — determine what to explore from `$@`:
