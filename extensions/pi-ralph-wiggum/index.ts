@@ -406,7 +406,10 @@ export default function (pi: ExtensionAPI) {
 		return `${l.name}: ${status} (iteration ${iter})`;
 	}
 
-	function updateUI(ctx: ExtensionContext): void {
+	function updateUI(
+		ctx: ExtensionContext,
+		progress?: ProgressState,
+	): void {
 		if (!ctx.hasUI) return;
 
 		const state = currentLoop
@@ -424,44 +427,55 @@ export default function (pi: ExtensionAPI) {
 				? `/${state.maxIterations}`
 				: "";
 
-		ctx.ui.setStatus(
-			"ralph",
-			theme.fg(
-				"accent",
-				`🔄 ${state.name} (${state.iteration}${maxStr})`,
-			),
-		);
+		// Status bar — live инструмент или статичный
+		const statusText = progress
+			? formatStatusText(
+					progress,
+					state.name,
+					state.iteration,
+					state.maxIterations,
+				)
+			: `🔄 ${state.name} (${state.iteration}${maxStr})`;
+		ctx.ui.setStatus("ralph", theme.fg("accent", statusText));
 
-		const lines = [
-			theme.fg("accent", theme.bold("Ralph Wiggum")),
-			theme.fg("muted", `Loop: ${state.name}`),
-			theme.fg(
-				"dim",
-				`Status: ${STATUS_ICONS[state.status]} ${state.status}`,
-			),
-			theme.fg(
-				"dim",
-				`Iteration: ${state.iteration}${maxStr}`,
-			),
-			theme.fg("dim", `Task: ${state.taskFile}`),
-		];
-		if (state.reflectEvery > 0) {
-			const next =
-				state.reflectEvery -
-				((state.iteration - 1) % state.reflectEvery);
-			lines.push(
+		// Widget — live прогресс или статичный
+		let lines: string[];
+		if (progress) {
+			lines = renderWidget(
+				progress,
+				state.name,
+				state.iteration,
+				state.maxIterations,
+				theme,
+			);
+		} else {
+			lines = [
+				theme.fg("accent", theme.bold("Ralph Wiggum")),
+				theme.fg("muted", `Loop: ${state.name}`),
 				theme.fg(
 					"dim",
-					`Next reflection in: ${next} iterations`,
+					`Status: ${STATUS_ICONS[state.status]} ${state.status}`,
 				),
-			);
+				theme.fg(
+					"dim",
+					`Iteration: ${state.iteration}${maxStr}`,
+				),
+				theme.fg("dim", `Task: ${state.taskFile}`),
+			];
+			if (state.reflectEvery > 0) {
+				const next =
+					state.reflectEvery -
+					((state.iteration - 1) % state.reflectEvery);
+				lines.push(
+					theme.fg("dim", `Next reflection in: ${next} iterations`),
+				);
+			}
 		}
+
+		// Общие hint'ы — всегда в конце виджета
 		lines.push("");
 		lines.push(
-			theme.fg(
-				"warning",
-				"ESC aborts child process",
-			),
+			theme.fg("warning", "ESC aborts child process"),
 		);
 		lines.push(
 			theme.fg(

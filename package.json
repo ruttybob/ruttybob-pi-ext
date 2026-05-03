@@ -14,17 +14,20 @@
 		],
 		"skills": [
 			"./extensions/system-prompt-template/skills",
-			"./extensions/pi-ralph-wiggum/skills"
+			"./extensions/pi-ralph-wiggum/skills",
+			"./extensions/side-agents/skills"
 		]
 	},
 	"dependencies": {
-		"@mariozechner/pi-tui": "*"
+		"@mariozechner/pi-tui": "*",
+		"@sinclair/typebox": "^0.34.49"
 	},
 	"devDependencies": {
-		"vitest": "^4.1.5",
-		"typescript": "^6.0.3"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.5"
 	},
 	"scripts": {
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:integration:side-agents": "node --test ../pi-side-agents/tests/integration/side-agents.integration.test.mjs"
 	}
 }
