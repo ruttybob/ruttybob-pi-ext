@@ -959,6 +959,10 @@ async function allocateWorktree(options: {
 	const branch = `side-agent/${agentId}`;
 	const mainHead = runOrThrow("git", ["-C", repoRoot, "rev-parse", "HEAD"]).stdout.trim();
 
+	// Clean up stale/prunable worktree references (e.g. user deleted a worktree
+	// directory manually) before scanning so listRegisteredWorktrees() is accurate.
+	run("git", ["-C", repoRoot, "worktree", "prune"]);
+
 	const registry = await loadRegistry(stateRoot);
 	const slots = await listWorktreeSlots(repoRoot);
 	const registered = listRegisteredWorktrees(repoRoot);
@@ -1029,7 +1033,7 @@ async function allocateWorktree(options: {
 	const chosenPath = chosen.path;
 	const chosenRegistered = registered.has(resolve(chosenPath));
 
-	if (chosenRegistered) {
+	if (chosenRegistered && (await fileExists(chosenPath))) {
 		// Remember old branch so we can try to clean it up after switching away.
 		const oldBranch = getCurrentBranch(chosenPath);
 
@@ -1043,6 +1047,13 @@ async function allocateWorktree(options: {
 			run("git", ["-C", repoRoot, "branch", "-d", oldBranch]);
 		}
 	} else {
+		// Defensive: if git still thinks this is registered but the directory is
+		// gone (shouldn't happen after the prune above, but just in case),
+		// run prune again so `git worktree add` below won't conflict.
+		if (chosenRegistered) {
+			run("git", ["-C", repoRoot, "worktree", "prune"]);
+			warnings.push(`Pruned stale worktree reference for slot ${chosenPath}`);
+		}
 		if (await fileExists(chosenPath)) {
 			const entries = await fs.readdir(chosenPath).catch(() => []);
 			if (entries.length > 0) {
