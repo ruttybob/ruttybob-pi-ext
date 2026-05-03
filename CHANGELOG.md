@@ -4,6 +4,7 @@
 
 ### Added
 
+- **zai-tools**: slash-команда `/zai-tools` для мгновенного toggle всех инструментов расширения (on/off). Состояние персистентно в рамках сессии и восстанавливается при навигации по session tree
 - **pi-mesh**: расширение для mesh-сети агентов (overlay, registry, feed, messaging, tracking, reservations)
 - **session-recap**: расширение для recap-сессий
 - **side-agents**: расширение для управления побочными агентами (spawn, check, wait, send)
