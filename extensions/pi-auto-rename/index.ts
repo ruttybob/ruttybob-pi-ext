@@ -1,4 +1,3 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Api, Model, TextContent } from "@mariozechner/pi-ai";
@@ -26,6 +25,7 @@ import {
 	sanitizeSessionName,
 } from "./utils.js";
 import { classifyError, classifyStopError, errorUserMessage } from "./errors.js";
+import { tryRead, atomicWrite, readJsonFile } from "../shared/fs.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -73,28 +73,24 @@ function parseRef(input: string): ModelRef | null {
 
 // ─── Config persistence ───────────────────────────────────────────────────────
 
-function readConfigFile(): Config | null {
-	try {
-		const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
-		const model = raw?.model;
-		const autoRename = raw?.autoRename;
-		if (typeof model?.provider === "string" && typeof model?.id === "string") {
-			return {
-				model: { provider: model.provider.trim(), id: model.id.trim() },
-				autoRename: typeof autoRename === "boolean" ? autoRename : true,
-				prompt: typeof raw?.prompt === "string" ? raw.prompt : undefined,
-			};
-		}
-		return null;
-	} catch {
-		return null;
+async function readConfigFile(): Promise<Config | null> {
+	const raw = await readJsonFile<Record<string, unknown>>(CONFIG_PATH);
+	if (!raw) return null;
+	const model = raw?.model;
+	const autoRename = raw?.autoRename;
+	if (typeof model?.provider === "string" && typeof model?.id === "string") {
+		return {
+			model: { provider: model.provider.trim(), id: model.id.trim() },
+			autoRename: typeof autoRename === "boolean" ? autoRename : true,
+			prompt: typeof raw?.prompt === "string" ? raw.prompt : undefined,
+		};
 	}
+	return null;
 }
 
-function writeConfigFile(config: Config): boolean {
+async function writeConfigFile(config: Config): Promise<boolean> {
 	try {
-		mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-		writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+		await atomicWrite(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
 		return true;
 	} catch {
 		return false;
@@ -118,11 +114,11 @@ function readSessionConfig(ctx: ExtensionContext): Config | null {
 	return null;
 }
 
-function loadConfig(ctx: ExtensionContext): Config | null {
-	const file = readConfigFile();
+async function loadConfig(ctx: ExtensionContext): Promise<Config | null> {
+	const file = await readConfigFile();
 	if (file) return file;
 	const session = readSessionConfig(ctx);
-	if (session) writeConfigFile(session);
+	if (session) await writeConfigFile(session);
 	return session;
 }
 
@@ -312,19 +308,20 @@ const DEFAULT_INSTRUCTION_AUTO =
 const DEFAULT_INSTRUCTION_MANUAL =
 	"Name this session based on the full conversation history. Use 2-6 words in Title Case.";
 
-function readPromptFile(path: string): { system?: string; instruction?: string } | null {
-	try {
-		const raw = readFileSync(path, "utf8");
-		return parseRenameMd(raw);
-	} catch {
-		return null;
-	}
+async function readPromptFile(path: string): Promise<{ system?: string; instruction?: string } | null> {
+	const raw = await tryRead(path);
+	if (!raw) return null;
+	return parseRenameMd(raw);
 }
 
 // ─── Extension entry point ────────────────────────────────────────────────────
 
 export default function piAutoRename(pi: ExtensionAPI) {
-	let config: Config = { ...defaultConfig(), ...(readConfigFile() ?? {}) };
+	let config: Config = defaultConfig();
+	// Загружаем реальный конфиг асинхронно при первом событии
+	void readConfigFile().then((c) => {
+		if (c) config = { ...config, ...c };
+	});
 	let namingAttempted = false;
 	let namingInProgress = false;
 	let cachedModels: ModelRef[] = [];
@@ -335,24 +332,24 @@ export default function piAutoRename(pi: ExtensionAPI) {
 
 	// ── Internal helpers ──────────────────────────────────────────────────
 
-	function persist(updated: Partial<Config>): boolean {
+	async function persist(updated: Partial<Config>): Promise<boolean> {
 		config = { ...config, ...updated };
 		if ("prompt" in updated && updated.prompt === undefined) delete config.prompt;
 		pi.appendEntry<Config>(CUSTOM_ENTRY_TYPE, config);
-		return writeConfigFile(config);
+		return await writeConfigFile(config);
 	}
 
-	function loadPromptOverrides(ctx: ExtensionContext): {
+	async function loadPromptOverrides(ctx: ExtensionContext): Promise<{
 		systemPrompt: string;
 		instructionAuto: string;
 		instructionManual: string;
 		systemSource: string;
 		instructionSource: string;
-	} {
+	}> {
 		// 1. Global file
-		const global = readPromptFile(GLOBAL_RENAME_MD);
+		const global = await readPromptFile(GLOBAL_RENAME_MD);
 		// 2. Project file
-		const project = readPromptFile(join(ctx.cwd, ".pi", "RENAME.md"));
+		const project = await readPromptFile(join(ctx.cwd, ".pi", "RENAME.md"));
 
 		// 3. System prompt: project > global > default
 		const systemFromFiles = project?.system ?? global?.system;
@@ -381,8 +378,8 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		return { systemPrompt, instructionAuto, instructionManual, systemSource, instructionSource };
 	}
 
-	function restoreConfig(ctx: ExtensionContext): void {
-		config = loadConfig(ctx) ?? defaultConfig();
+	async function restoreConfig(ctx: ExtensionContext): Promise<void> {
+		config = await loadConfig(ctx) ?? defaultConfig();
 	}
 
 	function refreshModelCache(ctx: ExtensionContext): void {
@@ -417,7 +414,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		namingInProgress = true;
 		lastRenameTurn = turnCount;
 		try {
-			const { systemPrompt, instructionAuto } = loadPromptOverrides(ctx);
+			const { systemPrompt, instructionAuto } = await loadPromptOverrides(ctx);
 			const name = await generateName(
 				ctx,
 				config.model,
@@ -434,9 +431,9 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		}
 	}
 
-	function onSessionEvent(_event: unknown, ctx: ExtensionContext): void {
+	async function onSessionEvent(_event: unknown, ctx: ExtensionContext): Promise<void> {
 		resetNaming();
-		restoreConfig(ctx);
+		await restoreConfig(ctx);
 		refreshModelCache(ctx);
 	}
 
@@ -480,7 +477,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 					notify(ctx, "No conversation history to generate a name from.", "warning");
 					return;
 				}
-				const { systemPrompt, instructionManual } = loadPromptOverrides(ctx);
+				const { systemPrompt, instructionManual } = await loadPromptOverrides(ctx);
 				const name = await generateName(
 					ctx,
 					config.model,
@@ -497,20 +494,20 @@ export default function piAutoRename(pi: ExtensionAPI) {
 			// --- Подкоманды: on / off ---
 
 			if (trimmed === "on") {
-				const ok = persist({ autoRename: true });
+				const ok = await persist({ autoRename: true });
 				notify(ctx, `Auto-rename enabled.${ok ? "" : " (persist failed)"}`, ok ? "info" : "warning");
 				return;
 			}
 
 			if (trimmed === "off") {
-				const ok = persist({ autoRename: false });
+				const ok = await persist({ autoRename: false });
 				notify(ctx, `Auto-rename disabled.${ok ? "" : " (persist failed)"}`, ok ? "info" : "warning");
 				return;
 			}
 
 			if (trimmed === "show") {
 				const status = config.autoRename ? "on" : "off";
-				const { systemSource, instructionSource } = loadPromptOverrides(ctx);
+				const { systemSource, instructionSource } = await loadPromptOverrides(ctx);
 				notify(
 					ctx,
 					`Rename model: ${formatRef(config.model)} | Auto-rename: ${status} | System: ${systemSource} | Instruction: ${instructionSource}`,
@@ -521,7 +518,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 
 			if (trimmed === "reset") {
 				const def = defaultConfig();
-				const ok = persist({ model: def.model, prompt: undefined });
+				const ok = await persist({ model: def.model, prompt: undefined });
 				notify(
 					ctx,
 					`Rename config reset to defaults${ok ? "" : " (persist failed)"}`,
@@ -559,7 +556,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 
 				// /rename prompt reset
 				if (promptArg === "reset") {
-					const ok = persist({ ...config, prompt: undefined });
+					const ok = await persist({ ...config, prompt: undefined });
 					notify(
 						ctx,
 						`Instruction override reset.${ok ? "" : " (persist failed)"}`,
@@ -579,7 +576,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 						);
 						return;
 					}
-					const ok = persist({ ...config, prompt: text });
+					const ok = await persist({ ...config, prompt: text });
 					notify(
 						ctx,
 						`Instruction override set.${ok ? "" : " (persist failed)"}`,
@@ -599,7 +596,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 				if (!modelArg) {
 					const picked = await openModelPicker(ctx, config.model, pi);
 					if (!picked) return;
-					const ok = persist({ model: picked });
+					const ok = await persist({ model: picked });
 					notify(
 						ctx,
 						`Rename model set to ${formatRef(picked)}${ok ? "" : " (persist failed)"}`,
@@ -616,7 +613,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 				}
 				const resolved = await resolveAuth(ctx, ref);
 				if (!resolved) return;
-				const ok = persist({ model: ref });
+				const ok = await persist({ model: ref });
 				notify(
 					ctx,
 					`Rename model set to ${formatRef(ref)}${ok ? "" : " (persist failed)"}`,
@@ -632,13 +629,13 @@ export default function piAutoRename(pi: ExtensionAPI) {
 	// ── Session lifecycle ─────────────────────────────────────────────────
 
 	pi.on("session_start", async (event, ctx) => {
-		onSessionEvent(event, ctx);
+		await onSessionEvent(event, ctx);
 		await autoName(ctx);
 	});
 
-	pi.on("session_tree", onSessionEvent);
-	pi.on("session_switch", onSessionEvent);
-	pi.on("session_fork", onSessionEvent);
+	pi.on("session_tree", async (e, ctx) => { await onSessionEvent(e, ctx); });
+	pi.on("session_switch", async (e, ctx) => { await onSessionEvent(e, ctx); });
+	pi.on("session_fork", async (e, ctx) => { await onSessionEvent(e, ctx); });
 
 	pi.on("message_end", async (event, ctx) => {
 		if (event.message.role === "user") turnCount++;

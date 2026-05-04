@@ -23,6 +23,7 @@ const DEFAULT_CONFIG: MeshConfig = {
   autoStatus: true,
 };
 
+// TODO: Миграция readJsonFile на shared async readJsonFile требует рефакторинга loadConfig (вызывается при init модуля)
 function readJsonFile(path: string): Record<string, unknown> | null {
   if (!existsSync(path)) return null;
   try {

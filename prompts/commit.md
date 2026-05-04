@@ -1,9 +1,9 @@
 ---
 description: git commit prompt with changelog and tagging
 ---
-<Goal>
+<addition>
 `$@`
-</Goal>
+</addition>
 
 Before every git commit:
 

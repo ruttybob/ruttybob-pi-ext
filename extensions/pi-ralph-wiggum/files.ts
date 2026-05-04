@@ -6,6 +6,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+// Re-export shared async утилиты
+export { ensureDir, tryRead } from "../shared/fs.js";
+
 export const RALPH_DIR = ".ralph";
 
 /** Маркер завершения цикла. */
@@ -88,24 +91,11 @@ export function getPath(
 
 // --- File I/O helpers ---
 
-export function ensureDir(filePath: string): void {
-	const dir = path.dirname(filePath);
-	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
 export function tryDelete(filePath: string): void {
 	try {
 		if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 	} catch {
 		/* ignore */
-	}
-}
-
-export function tryRead(filePath: string): string | null {
-	try {
-		return fs.readFileSync(filePath, "utf-8");
-	} catch {
-		return null;
 	}
 }
 

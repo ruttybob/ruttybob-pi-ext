@@ -3,13 +3,13 @@ import piAutoRename from "../../extensions/pi-auto-rename/index.js";
 import { createMockExtensionAPI } from "../test-helpers/mock-api.js";
 import { createMockCommandContext } from "../test-helpers/mock-context.js";
 
-// Мокаем fs чтобы не писать реальный конфиг
-vi.mock("node:fs", () => ({
-	mkdirSync: vi.fn(),
-	readFileSync: vi.fn(() => {
-		throw new Error("ENOENT");
-	}),
-	writeFileSync: vi.fn(),
+// Мокаем shared fs чтобы не писать реальный конфиг
+vi.mock("../../extensions/shared/fs.js", () => ({
+	tryRead: vi.fn(async () => undefined),
+	readJsonFile: vi.fn(async () => null),
+	atomicWrite: vi.fn(async () => {}),
+	fileExists: vi.fn(async () => false),
+	ensureDir: vi.fn(async () => {}),
 }));
 
 vi.mock("node:os", () => ({

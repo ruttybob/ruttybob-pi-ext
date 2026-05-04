@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **subagent**: монолит index.ts (987 строк) декомпозирован на модули types, runner, render, utils — entry point содержит только tool-регистрацию
+- **side-agents**: монолит index.ts (2403 строки) декомпозирован на модули types, utils, git, tmux, registry, worktree, backlog, status-poll — entry point содержит только tool/command/event-регистрации
+- **shared**: созданы переиспользуемые модули (fs, text, async, git) в `extensions/shared/` — устранено дублирование утилит между 4+ расширениями
+- **pi-ralph-wiggum**: миграция FS-утилит на импорты из shared (ensureDir, fileExists, tryRead, atomicWrite)
+- **pi-auto-rename**: миграция FS-утилит на импорты из shared (tryRead, atomicWrite, readJsonFile)
+- **system-prompt-template**: миграция FS-утилит на импорты из shared (tryRead, fileExists)
+- **pi-mesh**: добавлены TODO-комментарии для миграции sync→async утилит в registry, messaging, config
+
+### Added
+
+- **tests/shared**: unit-тесты для shared-модулей — fs (12), text (13), async (6), git (10)
+- **tests/subagent**: unit-тесты для subagent-модулей — runner, render
+
 ### Added
 
 - **zai-tools**: slash-команда `/zai-tools` для мгновенного toggle всех инструментов расширения (on/off). Состояние персистентно в рамках сессии и восстанавливается при навигации по session tree

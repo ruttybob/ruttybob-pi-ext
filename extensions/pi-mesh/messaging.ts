@@ -29,6 +29,7 @@ let pendingProcessArgs: {
 // Send
 // =============================================================================
 
+// TODO: Миграция ensureDirSync на shared async ensureDir требует рефакторинга sync callers (sendMessage, startWatcher, processInbox)
 function ensureDirSync(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

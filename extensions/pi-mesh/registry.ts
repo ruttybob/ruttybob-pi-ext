@@ -35,6 +35,7 @@ export function invalidateAgentsCache(): void {
 // Filesystem Helpers
 // =============================================================================
 
+// TODO: Миграция ensureDirSync на shared async ensureDir требует рефакторинга sync callers (register, ensureDataDirs, renameAgent)
 function ensureDirSync(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

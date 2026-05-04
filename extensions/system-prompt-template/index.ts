@@ -15,9 +15,9 @@
  * Install: copy to ~/.pi/agent/extensions/system-prompt-template/index.ts
  */
 
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { tryRead, fileExists } from '../shared/fs.js';
 import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
 
 // ============================================================================
@@ -82,7 +82,7 @@ function resolveTemplate(template: string, vars: Record<string, string>): string
 // Mode resolution (self-contained, no dependency on modes extension)
 // ============================================================================
 
-function loadPresetsSimple(cwd: string): Record<string, PresetDefinition> {
+async function loadPresetsSimple(cwd: string): Promise<Record<string, PresetDefinition>> {
   const merged: Record<string, PresetDefinition> = {};
 
   const agentDir = process.env.PI_CODING_AGENT_DIR
@@ -90,10 +90,10 @@ function loadPresetsSimple(cwd: string): Record<string, PresetDefinition> {
 
   for (const dir of [agentDir, cwd]) {
     const path = join(dir, 'presets.json');
-    if (!existsSync(path)) continue;
+    const raw = await tryRead(path);
+    if (!raw) continue;
     try {
-      const content = readFileSync(path, 'utf-8');
-      const parsed = JSON.parse(content);
+      const parsed = JSON.parse(raw);
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
         Object.assign(merged, parsed);
       }
@@ -105,11 +105,11 @@ function loadPresetsSimple(cwd: string): Record<string, PresetDefinition> {
   return merged;
 }
 
-function resolveCurrentMode(
+async function resolveCurrentMode(
   sessionManager: any,
   cwd: string,
   pi: ExtensionAPI,
-): ResolvedMode {
+): Promise<ResolvedMode> {
   const branch = sessionManager.getBranch?.() ?? sessionManager.getEntries?.() ?? [];
   let modeName: string | null = null;
 
@@ -128,13 +128,13 @@ function resolveCurrentMode(
     return { name: null, activeTools };
   }
 
-  const presets = loadPresetsSimple(cwd);
+  const presets = await loadPresetsSimple(cwd);
   const preset = presets[modeName];
 
   return { name: modeName, preset, activeTools };
 }
 
-function buildModeInjection(mode: ResolvedMode): string {
+async function buildModeInjection(mode: ResolvedMode): Promise<string> {
   if (!mode.name) return '';
 
   const sections: string[] = [
@@ -171,37 +171,35 @@ function loadTemplateFromBranch(sessionManager: any): string | null {
   return null;
 }
 
-function loadTemplateFromDisk(cwd: string): { template: string; source: TemplateSource['source']; path: string } | null {
+async function loadTemplateFromDisk(cwd: string): Promise<{ template: string; source: TemplateSource['source']; path: string } | null> {
   const agentDir = process.env.PI_CODING_AGENT_DIR
     ?? join(process.env.HOME ?? '/root', '.pi', 'agent');
 
   // Project file: .pi/REPPI.md
   const projectPath = join(cwd, '.pi', TEMPLATE_FILENAME);
-  if (existsSync(projectPath)) {
-    try {
-      return { template: readFileSync(projectPath, 'utf-8'), source: 'project', path: projectPath };
-    } catch { /* skip */ }
+  const projectContent = await tryRead(projectPath);
+  if (projectContent) {
+    return { template: projectContent, source: 'project', path: projectPath };
   }
 
   // Global file: ~/.pi/agent/REPPI.md
   const globalPath = join(agentDir, TEMPLATE_FILENAME);
-  if (existsSync(globalPath)) {
-    try {
-      return { template: readFileSync(globalPath, 'utf-8'), source: 'global', path: globalPath };
-    } catch { /* skip */ }
+  const globalContent = await tryRead(globalPath);
+  if (globalContent) {
+    return { template: globalContent, source: 'global', path: globalPath };
   }
 
   return null;
 }
 
-function loadTemplate(sessionManager: any, cwd: string): TemplateSource | null {
+async function loadTemplate(sessionManager: any, cwd: string): Promise<TemplateSource | null> {
   // Priority: branch entry → project file → global file
   const branchTemplate = loadTemplateFromBranch(sessionManager);
   if (branchTemplate) {
     return { template: branchTemplate, source: 'branch' };
   }
 
-  const diskTemplate = loadTemplateFromDisk(cwd);
+  const diskTemplate = await loadTemplateFromDisk(cwd);
   if (diskTemplate) {
     return diskTemplate;
   }
@@ -232,12 +230,12 @@ function loadState(sessionManager: any): ReppiState {
 // Variable resolution
 // ============================================================================
 
-function buildTemplateVars(
+async function buildTemplateVars(
   sessionManager: any,
   cwd: string,
   pi: ExtensionAPI,
   event: any,
-): Record<string, string> {
+): Promise<Record<string, string>> {
   const opts = event.systemPromptOptions ?? {};
   const toolSnippets: Record<string, string> = opts.toolSnippets ?? {};
   const selectedTools: string[] = opts.selectedTools ?? [];
@@ -256,8 +254,8 @@ function buildTemplateVars(
     : '';
 
   // {{mode}} — current mode instructions (from modes extension, resolved independently)
-  const mode = resolveCurrentMode(sessionManager, cwd, pi);
-  const modeInjection = buildModeInjection(mode);
+  const mode = await resolveCurrentMode(sessionManager, cwd, pi);
+  const modeInjection = await buildModeInjection(mode);
 
   // {{documentation}} — pi documentation links (from the default prompt)
   // Extract from base_prompt since we can't easily call getDocsPath() from extension
@@ -315,11 +313,11 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
     if (!state.enabled) return;
 
     // Load template
-    const templateSource = loadTemplate(sessionManager, cwd);
+    const templateSource = await loadTemplate(sessionManager, cwd);
     if (!templateSource) return;
 
     // Build variables from event data
-    const vars = buildTemplateVars(sessionManager, cwd, pi, event);
+    const vars = await buildTemplateVars(sessionManager, cwd, pi, event);
 
     // Resolve template
     const resolved = resolveTemplate(templateSource.template, vars);
@@ -343,7 +341,7 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
       switch (cmd) {
         case 'status': {
           const state = loadState(sessionManager);
-          const templateSource = loadTemplate(sessionManager, cwd);
+          const templateSource = await loadTemplate(sessionManager, cwd);
 
           let status = `REPPI: ${state.enabled ? '✓ enabled' : '✗ disabled'}\n`;
           if (templateSource) {
@@ -359,7 +357,7 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
         }
 
         case 'show': {
-          const templateSource = loadTemplate(sessionManager, cwd);
+          const templateSource = await loadTemplate(sessionManager, cwd);
           if (!templateSource) {
             ctx.ui.notify('No REPPI template found. Create .pi/REPPI.md or ~/.pi/agent/REPPI.md', 'warning');
             return;
@@ -370,7 +368,7 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
           output += templateSource.template;
 
           // Show resolved preview
-          const vars = buildTemplateVars(sessionManager, cwd, pi, {
+          const vars = await buildTemplateVars(sessionManager, cwd, pi, {
             systemPrompt: ctx.getSystemPrompt?.() ?? '',
             systemPromptOptions: {} as any,
           });
@@ -389,8 +387,9 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
           const projectPath = join(cwd, '.pi', TEMPLATE_FILENAME);
 
           // Prefer project file, fall back to global
-          const editPath = existsSync(projectPath) ? projectPath
-            : existsSync(globalPath) ? globalPath
+          // TODO: Миграция fileExists на async требует async handler
+          const editPath = (await fileExists(projectPath)) ? projectPath
+            : (await fileExists(globalPath)) ? globalPath
             : projectPath; // create new in project dir
 
           const editor = process.env.EDITOR || process.env.VISUAL || 'vim';

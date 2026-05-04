@@ -37,9 +37,9 @@ describe("files — ensureDir", () => {
 
 	afterEach(() => tmp.cleanup());
 
-	it("создаёт промежуточные директории", () => {
+	it("создаёт промежуточные директории", async () => {
 		const filePath = path.join(tmp.cwd, "a", "b", "c", "file.txt");
-		ensureDir(filePath);
+		await ensureDir(path.dirname(filePath));
 		expect(fs.existsSync(path.dirname(filePath))).toBe(true);
 	});
 });
@@ -75,13 +75,13 @@ describe("files — tryRead", () => {
 
 	afterEach(() => tmp.cleanup());
 
-	it("читает содержимое файла", () => {
+	it("читает содержимое файла", async () => {
 		const filePath = writeRalphFile(tmp.ralphDir, "test.txt", "hello");
-		expect(tryRead(filePath)).toBe("hello");
+		expect(await tryRead(filePath)).toBe("hello");
 	});
 
-	it("возвращает null если файла нет", () => {
-		expect(tryRead(path.join(tmp.cwd, "nope.txt"))).toBeNull();
+	it("возвращает undefined если файла нет", async () => {
+		expect(await tryRead(path.join(tmp.cwd, "nope.txt"))).toBeUndefined();
 	});
 });
 

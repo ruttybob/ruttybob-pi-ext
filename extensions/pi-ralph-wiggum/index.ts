@@ -7,8 +7,8 @@
  * Flat-режим удалён.
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
+import { readdir, rename, rmdir } from "node:fs/promises";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
@@ -24,14 +24,13 @@ import {
 	getLoopDir,
 	getRalphDir,
 	getArchiveDir,
-	ensureDir,
 	tryDelete,
-	tryRead,
 	safeMtimeMs,
 	tryRemoveDir,
 	buildProgressTemplate,
 	buildReflectionTemplate,
 } from "./files.js";
+import { fileExists, tryRead, atomicWrite, ensureDir } from "../shared/fs.js";
 import { buildSystemPromptAppend } from "./prompt-builder.js";
 import { spawnChildSession } from "./child-session.js";
 import {
@@ -128,12 +127,12 @@ export default function (pi: ExtensionAPI) {
 		return raw as LoopState;
 	}
 
-	function loadState(
+	async function loadState(
 		ctx: ExtensionContext,
 		name: string,
 		archived = false,
-	): LoopState | null {
-		const content = tryRead(
+	): Promise<LoopState | null> {
+		const content = await tryRead(
 			getPath(ctx.cwd, name, ".state.json", archived),
 		);
 		return content
@@ -141,11 +140,11 @@ export default function (pi: ExtensionAPI) {
 			: null;
 	}
 
-	function saveState(
+	async function saveState(
 		ctx: ExtensionContext,
 		state: LoopState,
 		archived = false,
-	): void {
+	): Promise<void> {
 		state.active = state.status === "active";
 		const filePath = getPath(
 			ctx.cwd,
@@ -153,86 +152,76 @@ export default function (pi: ExtensionAPI) {
 			".state.json",
 			archived,
 		);
-		ensureDir(filePath);
-		fs.writeFileSync(
+		await atomicWrite(
 			filePath,
 			JSON.stringify(state, null, 2),
-			"utf-8",
 		);
 	}
 
-	function listLoops(
+	async function listLoops(
 		ctx: ExtensionContext,
 		archived = false,
-	): LoopState[] {
+	): Promise<LoopState[]> {
 		const dir = archived
 			? getArchiveDir(ctx.cwd)
 			: getRalphDir(ctx.cwd);
-		if (!fs.existsSync(dir)) return [];
-		return fs
-			.readdirSync(dir, { withFileTypes: true })
-			.filter(
-				(d) =>
-					d.isDirectory() &&
-					d.name !== "archive",
-			)
-			.map((d) => {
-				const statePath = path.join(
-					dir,
-					d.name,
-					"state.json",
-				);
-				const content = tryRead(statePath);
-				return content
-					? migrateState(JSON.parse(content))
-					: null;
-			})
-			.filter((s): s is LoopState => s !== null);
+		if (!await fileExists(dir)) return [];
+		const entries = await readdir(dir, { withFileTypes: true });
+		const results: (LoopState | null)[] = [];
+		for (const d of entries) {
+			if (!d.isDirectory() || d.name === "archive") continue;
+			const statePath = path.join(dir, d.name, "state.json");
+			const content = await tryRead(statePath);
+			results.push(
+				content ? migrateState(JSON.parse(content)) : null,
+			);
+		}
+		return results.filter((s): s is LoopState => s !== null);
 	}
 
 	// --- Loop state transitions ---
 
-	function pauseLoop(
+	async function pauseLoop(
 		ctx: ExtensionContext,
 		state: LoopState,
 		message?: string,
-	): void {
+	): Promise<void> {
 		state.status = "paused";
 		state.active = false;
-		saveState(ctx, state);
+		await saveState(ctx, state);
 		currentLoop = null;
 		abortController = null;
-		updateUI(ctx);
+		await updateUI(ctx);
 		if (message && ctx.hasUI) ctx.ui.notify(message, "info");
 	}
 
-	function completeLoop(
+	async function completeLoop(
 		ctx: ExtensionContext,
 		state: LoopState,
 		banner: string,
-	): string {
+	): Promise<string> {
 		state.status = "completed";
 		state.completedAt = new Date().toISOString();
 		state.active = false;
-		saveState(ctx, state);
+		await saveState(ctx, state);
 		currentLoop = null;
 		abortController = null;
-		updateUI(ctx);
+		await updateUI(ctx);
 		return banner;
 	}
 
-	function stopLoop(
+	async function stopLoop(
 		ctx: ExtensionContext,
 		state: LoopState,
 		message?: string,
-	): void {
+	): Promise<void> {
 		state.status = "completed";
 		state.completedAt = new Date().toISOString();
 		state.active = false;
-		saveState(ctx, state);
+		await saveState(ctx, state);
 		currentLoop = null;
 		abortController = null;
-		updateUI(ctx);
+		await updateUI(ctx);
 		if (message && ctx.hasUI) ctx.ui.notify(message, "info");
 	}
 
@@ -259,17 +248,17 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Подготовка промпта
-			const progressContent = tryRead(
+			const progressContent = await tryRead(
 				path.resolve(ctx.cwd, state.progressFile),
 			);
-			const reflectionContent = tryRead(
+			const reflectionContent = await tryRead(
 				path.resolve(ctx.cwd, state.reflectionFile),
 			);
-			const taskContent = tryRead(
+			const taskContent = await tryRead(
 				path.resolve(ctx.cwd, state.taskFile),
 			);
 			if (!taskContent) {
-				pauseLoop(
+				await pauseLoop(
 					ctx,
 					state,
 					`Error: Could not read task file: ${state.taskFile}`,
@@ -314,7 +303,7 @@ export default function (pi: ExtensionAPI) {
 								const now = Date.now();
 								if (now - lastRenderTime >= RENDER_THROTTLE_MS) {
 									lastRenderTime = now;
-									updateUI(ctx, progressState);
+									void updateUI(ctx, progressState);
 								}
 							}
 						: undefined,
@@ -322,10 +311,10 @@ export default function (pi: ExtensionAPI) {
 			} catch (err: any) {
 				state.status = "paused";
 				state.active = false;
-				saveState(ctx, state);
+				await saveState(ctx, state);
 				currentLoop = null;
 				abortController = null;
-				updateUI(ctx);
+				await updateUI(ctx);
 				return {
 					banner: err?.message?.includes("aborted")
 						? `⏸ Ralph iteration ${state.iteration} was interrupted.`
@@ -338,10 +327,10 @@ export default function (pi: ExtensionAPI) {
 			if (signal?.aborted) {
 				state.status = "paused";
 				state.active = false;
-				saveState(ctx, state);
+				await saveState(ctx, state);
 				currentLoop = null;
 				abortController = null;
-				updateUI(ctx);
+				await updateUI(ctx);
 				return {
 					banner: `⏸ Ralph loop "${state.name}" paused at iteration ${state.iteration}.`,
 					status: "paused",
@@ -351,14 +340,14 @@ export default function (pi: ExtensionAPI) {
 			// COMPLETE_MARKER → цикл завершён
 			if (childResult.complete) {
 				const banner = `${SEPARATOR}\n✅ RALPH LOOP COMPLETE: ${state.name} | ${state.iteration} iterations\n${SEPARATOR}`;
-				completeLoop(ctx, state, banner);
+				await completeLoop(ctx, state, banner);
 				return { banner, status: "completed" };
 			}
 
 			// Ошибка child-сессии → пауза
 			if (childResult.exitCode !== 0) {
 				const msg = `Child session failed (exit code ${childResult.exitCode}): ${childResult.stderr.slice(0, 200)}`;
-				pauseLoop(ctx, state, msg);
+				await pauseLoop(ctx, state, msg);
 				return { banner: msg, status: "paused" };
 			}
 
@@ -369,12 +358,12 @@ export default function (pi: ExtensionAPI) {
 				state.iteration > state.maxIterations
 			) {
 				const banner = `${SEPARATOR}\n⚠️ RALPH LOOP STOPPED: ${state.name} | Max iterations (${state.maxIterations}) reached\n${SEPARATOR}`;
-				completeLoop(ctx, state, banner);
+				await completeLoop(ctx, state, banner);
 				return { banner, status: "completed" };
 			}
 
-				saveState(ctx, state);
-				updateUI(ctx);
+			await saveState(ctx, state);
+			await updateUI(ctx);
 
 			// Прогресс через onUpdate (для tool) — не sendUserMessage
 			onUpdate?.({
@@ -406,14 +395,14 @@ export default function (pi: ExtensionAPI) {
 		return `${l.name}: ${status} (iteration ${iter})`;
 	}
 
-	function updateUI(
+	async function updateUI(
 		ctx: ExtensionContext,
 		progress?: ProgressState,
-	): void {
+	): Promise<void> {
 		if (!ctx.hasUI) return;
 
 		const state = currentLoop
-			? loadState(ctx, currentLoop)
+			? await loadState(ctx, currentLoop)
 			: null;
 		if (!state) {
 			ctx.ui.setStatus("ralph", undefined);
@@ -537,9 +526,9 @@ export default function (pi: ExtensionAPI) {
 
 	const commands: Record<
 		string,
-		(rest: string, ctx: ExtensionContext) => void
+		(rest: string, ctx: ExtensionContext) => Promise<void>
 	> = {
-		start(rest, ctx) {
+		async start(rest, ctx) {
 			const args = parseArgs(rest);
 			if (!args.name) {
 				ctx.ui.notify(
@@ -574,7 +563,7 @@ export default function (pi: ExtensionAPI) {
 				"reflection.md",
 			);
 
-			const existing = loadState(ctx, loopName);
+			const existing = await loadState(ctx, loopName);
 			if (existing?.status === "active") {
 				ctx.ui.notify(
 					`Loop "${loopName}" is already active. Use /ralph resume ${loopName}`,
@@ -585,12 +574,10 @@ export default function (pi: ExtensionAPI) {
 
 			// Создать taskFile если нет
 			const fullPath = path.resolve(ctx.cwd, taskFile);
-			if (!fs.existsSync(fullPath)) {
-				ensureDir(fullPath);
-				fs.writeFileSync(
+			if (!await fileExists(fullPath)) {
+				await atomicWrite(
 					fullPath,
 					DEFAULT_TEMPLATE,
-					"utf-8",
 				);
 				ctx.ui.notify(
 					`Created task file: ${taskFile}`,
@@ -603,12 +590,10 @@ export default function (pi: ExtensionAPI) {
 				ctx.cwd,
 				progressFile,
 			);
-			if (!fs.existsSync(progressPath)) {
-				ensureDir(progressPath);
-				fs.writeFileSync(
+			if (!await fileExists(progressPath)) {
+				await atomicWrite(
 					progressPath,
 					buildProgressTemplate(loopName),
-					"utf-8",
 				);
 			}
 
@@ -617,12 +602,10 @@ export default function (pi: ExtensionAPI) {
 				ctx.cwd,
 				reflectionFile,
 			);
-			if (!fs.existsSync(reflectionPath)) {
-				ensureDir(reflectionPath);
-				fs.writeFileSync(
+			if (!await fileExists(reflectionPath)) {
+				await atomicWrite(
 					reflectionPath,
 					buildReflectionTemplate(loopName),
-					"utf-8",
 				);
 			}
 
@@ -644,11 +627,11 @@ export default function (pi: ExtensionAPI) {
 				lastReflectionAt: 0,
 			};
 
-			saveState(ctx, state);
+			await saveState(ctx, state);
 			currentLoop = loopName;
-			updateUI(ctx);
+			await updateUI(ctx);
 
-			const content = tryRead(fullPath);
+			const content = await tryRead(fullPath);
 			if (!content) {
 				ctx.ui.notify(
 					`Could not read task file: ${taskFile}`,
@@ -674,7 +657,7 @@ export default function (pi: ExtensionAPI) {
 			);
 		},
 
-		stop(_rest, ctx) {
+		async stop(_rest, ctx) {
 			// Сначала abort дочерний процесс если есть
 			if (abortController) {
 				abortController.abort();
@@ -682,11 +665,11 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (!currentLoop) {
-				const active = listLoops(ctx).find(
+				const active = (await listLoops(ctx)).find(
 					(l) => l.status === "active",
 				);
 				if (active) {
-					pauseLoop(
+					await pauseLoop(
 						ctx,
 						active,
 						`Paused Ralph loop: ${active.name} (iteration ${active.iteration})`,
@@ -699,9 +682,9 @@ export default function (pi: ExtensionAPI) {
 				}
 				return;
 			}
-			const state = loadState(ctx, currentLoop);
+			const state = await loadState(ctx, currentLoop);
 			if (state) {
-				pauseLoop(
+				await pauseLoop(
 					ctx,
 					state,
 					`Paused Ralph loop: ${currentLoop} (iteration ${state.iteration})`,
@@ -709,7 +692,7 @@ export default function (pi: ExtensionAPI) {
 			}
 		},
 
-		resume(rest, ctx) {
+		async resume(rest, ctx) {
 			const loopName = rest.trim();
 			if (!loopName) {
 				ctx.ui.notify(
@@ -719,7 +702,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const state = loadState(ctx, loopName);
+			const state = await loadState(ctx, loopName);
 			if (!state) {
 				ctx.ui.notify(
 					`Loop "${loopName}" not found`,
@@ -737,23 +720,23 @@ export default function (pi: ExtensionAPI) {
 
 			// Pause current loop if different
 			if (currentLoop && currentLoop !== loopName) {
-				const curr = loadState(ctx, currentLoop);
-				if (curr) pauseLoop(ctx, curr);
+				const curr = await loadState(ctx, currentLoop);
+				if (curr) await pauseLoop(ctx, curr);
 			}
 
 			state.status = "active";
 			state.active = true;
 			state.iteration++;
-			saveState(ctx, state);
+			await saveState(ctx, state);
 			currentLoop = loopName;
-			updateUI(ctx);
+			await updateUI(ctx);
 
 			ctx.ui.notify(
 				`Resumed: ${loopName} (iteration ${state.iteration})`,
 				"info",
 			);
 
-			const content = tryRead(
+			const content = await tryRead(
 				path.resolve(ctx.cwd, state.taskFile),
 			);
 			if (!content) {
@@ -780,8 +763,8 @@ export default function (pi: ExtensionAPI) {
 			);
 		},
 
-		status(_rest, ctx) {
-			const loops = listLoops(ctx);
+		async status(_rest, ctx) {
+			const loops = await listLoops(ctx);
 			if (loops.length === 0) {
 				ctx.ui.notify(
 					"No Ralph loops found.",
@@ -795,7 +778,7 @@ export default function (pi: ExtensionAPI) {
 			);
 		},
 
-		cancel(rest, ctx) {
+		async cancel(rest, ctx) {
 			const loopName = rest.trim();
 			if (!loopName) {
 				ctx.ui.notify(
@@ -804,7 +787,7 @@ export default function (pi: ExtensionAPI) {
 				);
 				return;
 			}
-			if (!loadState(ctx, loopName)) {
+			if (!await loadState(ctx, loopName)) {
 				ctx.ui.notify(
 					`Loop "${loopName}" not found`,
 					"error",
@@ -820,10 +803,10 @@ export default function (pi: ExtensionAPI) {
 				getPath(ctx.cwd, loopName, ".state.json"),
 			);
 			ctx.ui.notify(`Cancelled: ${loopName}`, "info");
-			updateUI(ctx);
+			await updateUI(ctx);
 		},
 
-		archive(rest, ctx) {
+		async archive(rest, ctx) {
 			const loopName = rest.trim();
 			if (!loopName) {
 				ctx.ui.notify(
@@ -832,7 +815,7 @@ export default function (pi: ExtensionAPI) {
 				);
 				return;
 			}
-			const state = loadState(ctx, loopName);
+			const state = await loadState(ctx, loopName);
 			if (!state) {
 				ctx.ui.notify(
 					`Loop "${loopName}" not found`,
@@ -852,29 +835,30 @@ export default function (pi: ExtensionAPI) {
 
 			const srcDir = getLoopDir(ctx.cwd, loopName);
 			const dstDir = getLoopDir(ctx.cwd, loopName, true);
-			ensureDir(path.join(dstDir, "x"));
+			await ensureDir(dstDir);
 
-			if (fs.existsSync(srcDir)) {
-				for (const file of fs.readdirSync(srcDir)) {
+			if (await fileExists(srcDir)) {
+				const files = await readdir(srcDir);
+				for (const file of files) {
 					const src = path.join(srcDir, file);
 					const dst = path.join(dstDir, file);
-					if (fs.existsSync(src))
-						fs.renameSync(src, dst);
+					if (await fileExists(src))
+						await rename(src, dst);
 				}
 				try {
-					fs.rmdirSync(srcDir);
+					await rmdir(srcDir);
 				} catch {
 					/* ignore */
 				}
 			}
 
 			ctx.ui.notify(`Archived: ${loopName}`, "info");
-			updateUI(ctx);
+			await updateUI(ctx);
 		},
 
-		clean(rest, ctx) {
+		async clean(rest, ctx) {
 			const all = rest.trim() === "--all";
-			const completed = listLoops(ctx).filter(
+			const completed = (await listLoops(ctx)).filter(
 				(l) => l.status === "completed",
 			);
 
@@ -911,12 +895,12 @@ export default function (pi: ExtensionAPI) {
 				`Cleaned ${completed.length} loop(s)${suffix}:\n${completed.map((l) => `  • ${l.name}`).join("\n")}`,
 				"info",
 			);
-			updateUI(ctx);
+			await updateUI(ctx);
 		},
 
-		list(rest, ctx) {
+		async list(rest, ctx) {
 			const archived = rest.trim() === "--archived";
-			const loops = listLoops(ctx, archived);
+			const loops = await listLoops(ctx, archived);
 
 			if (loops.length === 0) {
 				ctx.ui.notify(
@@ -937,14 +921,14 @@ export default function (pi: ExtensionAPI) {
 			);
 		},
 
-		nuke(rest, ctx) {
+		async nuke(rest, ctx) {
 			const force = rest.trim() === "--yes";
 			const warning =
 				"This deletes all .ralph state, task, and archive files. External task files are not removed.";
 
-			const run = () => {
+			const run = async () => {
 				const dir = getRalphDir(ctx.cwd);
-				if (!fs.existsSync(dir)) {
+				if (!await fileExists(dir)) {
 					if (ctx.hasUI)
 						ctx.ui.notify(
 							"No .ralph directory found.",
@@ -964,7 +948,7 @@ export default function (pi: ExtensionAPI) {
 						ok ? "info" : "error",
 					);
 				}
-				updateUI(ctx);
+				await updateUI(ctx);
 			};
 
 			if (!force) {
@@ -974,8 +958,8 @@ export default function (pi: ExtensionAPI) {
 							"Delete all Ralph loop files?",
 							warning,
 						)
-						.then((confirmed) => {
-							if (confirmed) run();
+						.then(async (confirmed) => {
+							if (confirmed) await run();
 						});
 				} else {
 					ctx.ui.notify(
@@ -987,7 +971,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (ctx.hasUI) ctx.ui.notify(warning, "warning");
-			run();
+			await run();
 		},
 	};
 
@@ -1024,7 +1008,7 @@ Examples:
 			const [cmd] = args.trim().split(/\s+/);
 			const handler = commands[cmd];
 			if (handler) {
-				handler(args.slice(cmd.length).trim(), ctx);
+				await handler(args.slice(cmd.length).trim(), ctx);
 			} else {
 				ctx.ui.notify(HELP, "info");
 			}
@@ -1045,10 +1029,10 @@ Examples:
 			}
 
 			let state = currentLoop
-				? loadState(ctx, currentLoop)
+				? await loadState(ctx, currentLoop)
 				: null;
 			if (!state) {
-				const active = listLoops(ctx).find(
+				const active = (await listLoops(ctx)).find(
 					(l) => l.status === "active",
 				);
 				if (!active) {
@@ -1071,7 +1055,7 @@ Examples:
 				return;
 			}
 
-			stopLoop(
+			await stopLoop(
 				ctx,
 				state,
 				`Stopped Ralph loop: ${state.name} (iteration ${state.iteration})`,
@@ -1146,7 +1130,7 @@ Examples:
 			);
 
 			if (
-				loadState(ctx, loopName)?.status === "active"
+				(await loadState(ctx, loopName))?.status === "active"
 			) {
 				return {
 					content: [
@@ -1161,33 +1145,27 @@ Examples:
 
 			// Создать файлы
 			const fullPath = path.resolve(ctx.cwd, taskFile);
-			ensureDir(fullPath);
-			fs.writeFileSync(
+			await atomicWrite(
 				fullPath,
 				params.taskContent,
-				"utf-8",
 			);
 
 			const progressPath = path.resolve(
 				ctx.cwd,
 				progressFile,
 			);
-			ensureDir(progressPath);
-			fs.writeFileSync(
+			await atomicWrite(
 				progressPath,
 				buildProgressTemplate(loopName),
-				"utf-8",
 			);
 
 			const reflectionPath = path.resolve(
 				ctx.cwd,
 				reflectionFile,
 			);
-			ensureDir(reflectionPath);
-			fs.writeFileSync(
+			await atomicWrite(
 				reflectionPath,
 				buildReflectionTemplate(loopName),
-				"utf-8",
 			);
 
 			const state: LoopState = {
@@ -1208,9 +1186,9 @@ Examples:
 				lastReflectionAt: 0,
 			};
 
-			saveState(ctx, state);
+			await saveState(ctx, state);
 			currentLoop = loopName;
-			updateUI(ctx);
+			await updateUI(ctx);
 
 			const result = await runLoop(
 				ctx,
@@ -1238,7 +1216,7 @@ Examples:
 	// --- Event handlers ---
 
 	pi.on("session_start", async (_event, ctx) => {
-		const active = listLoops(ctx).filter(
+		const active = (await listLoops(ctx)).filter(
 			(l) => l.status === "active",
 		);
 
@@ -1277,13 +1255,13 @@ Examples:
 				"info",
 			);
 		}
-		updateUI(ctx);
+		await updateUI(ctx);
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
 		if (currentLoop) {
-			const state = loadState(ctx, currentLoop);
-			if (state) saveState(ctx, state);
+			const state = await loadState(ctx, currentLoop);
+			if (state) await saveState(ctx, state);
 		}
 		if (abortController) {
 			abortController.abort();

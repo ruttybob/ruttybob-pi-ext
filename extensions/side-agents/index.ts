@@ -1,179 +1,47 @@
-import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@mariozechner/pi-coding-agent";
+/**
+ * side-agents extension — entry point.
+ *
+ * Только регистрации tools/commands и event handlers.
+ * Вся бизнес-логика делегирована модулям.
+ */
+
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
-import { spawnSync } from "node:child_process";
-import { promises as fs, readFileSync, writeFileSync } from "node:fs";
+import { promises as fs } from "node:fs";
 import os from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
-const ENV_STATE_ROOT = "PI_SIDE_AGENTS_ROOT";
-const ENV_AGENT_ID = "PI_SIDE_AGENT_ID";
-const ENV_PARENT_SESSION = "PI_SIDE_PARENT_SESSION";
-const ENV_PARENT_REPO = "PI_SIDE_PARENT_REPO";
-const ENV_RUNTIME_DIR = "PI_SIDE_RUNTIME_DIR";
+import { sleep, stringifyError, nowIso, isTerminalStatus, sanitizeSlug, slugFromTask, deduplicateSlug, normalizeAgentId, normalizeWaitStates, statusColorRole } from "./utils.js";
+import type { AgentStatus, AgentRecord, StartAgentParams, StartAgentResult, PrepareRuntimeDirResult, ThemeForeground } from "./types.js";
+import { CHILD_LINK_ENTRY_TYPE, PROMPT_UPDATE_MESSAGE_TYPE, ENV_AGENT_ID, ENV_PARENT_SESSION } from "./types.js";
+import { ensureDir, fileExists, readJsonFile, atomicWrite } from "../shared/fs.js";
+import { shellQuote, run, runOrThrow } from "../shared/git.js";
+import { splitLines, tailLines } from "../shared/text.js";
+import { resolveGitRoot, existingAgentIds } from "./git.js";
+import { ensureTmuxReady, getCurrentTmuxSession, createTmuxWindow, tmuxPipePaneToFile, tmuxInterrupt, tmuxSendPrompt, tmuxWindowExists } from "./tmux.js";
+import { ensureDir as ensureDirRegistry, getMetaDir, getRuntimeDir, getRuntimeArchiveBaseDir, runtimeArchiveStamp, loadRegistry, saveRegistry, mutateRegistry, getRegistryPath } from "./registry.js";
+import { allocateWorktree, writeWorktreeLock, updateWorktreeLock, cleanupWorktreeLockBestEffort, scanOrphanWorktreeLocks, reclaimOrphanWorktreeLocks, summarizeOrphanLock } from "./worktree.js";
+import { collectRecentBacklogLines, sanitizeBacklogLines, stripTerminalNoise } from "./backlog.js";
+import {
+	collectStatusTransitions,
+	emitStatusTransitions,
+	isLatestGeneration,
+	renderStatusLine,
+	ensureStatusPoller,
+	agentCheckPayload,
+	getStateRoot,
+	getStatusPollContext,
+	getStatusPollApi,
+	setStatusPollContext,
+	setStatusPollApi,
+} from "./status-poll.js";
 
-const STATUS_KEY = "side-agents";
-const REGISTRY_VERSION = 1;
-const CHILD_LINK_ENTRY_TYPE = "side-agent-link";
-const STATUS_UPDATE_MESSAGE_TYPE = "side-agent-status";
-const PROMPT_UPDATE_MESSAGE_TYPE = "side-agent-prompt";
-
-type AgentStatus =
-	| "allocating_worktree"
-	| "spawning_tmux"
-	| "running"
-	| "waiting_user"
-	| "done"
-	| "failed"
-	| "crashed";
-
-const ALL_AGENT_STATUSES: AgentStatus[] = [
-	"allocating_worktree",
-	"spawning_tmux",
-	"running",
-	"waiting_user",
-	"failed",
-	"crashed",
-];
-
-const DEFAULT_WAIT_STATES: AgentStatus[] = ["waiting_user", "failed", "crashed"];
-
-type AgentRecord = {
-	id: string;
-	parentSessionId?: string;
-	childSessionId?: string;
-	tmuxSession?: string;
-	tmuxWindowId?: string;
-	tmuxWindowIndex?: number;
-	worktreePath?: string;
-	branch?: string;
-	model?: string;
-	task: string;
-	status: AgentStatus;
-	startedAt: string;
-	updatedAt: string;
-	finishedAt?: string;
-	runtimeDir?: string;
-	logPath?: string;
-	promptPath?: string;
-	exitFile?: string;
-	exitCode?: number;
-	error?: string;
-	warnings?: string[];
-};
-
-type RegistryFile = {
-	version: 1;
-	agents: Record<string, AgentRecord>;
-};
-
-type AllocateWorktreeResult = {
-	worktreePath: string;
-	slotIndex: number;
-	branch: string;
-	warnings: string[];
-};
-
-type StartAgentParams = {
-	task: string;
-	branchHint?: string;
-	model?: string;
-	includeSummary: boolean;
-};
-
-type StartAgentResult = {
-	id: string;
-	tmuxWindowId: string;
-	tmuxWindowIndex: number;
-	worktreePath: string;
-	branch: string;
-	warnings: string[];
-	prompt: string;
-};
-
-type PrepareRuntimeDirResult = {
-	runtimeDir: string;
-	archivedRuntimeDir?: string;
-	warning?: string;
-};
-
-type ExitMarker = {
-	exitCode?: number;
-	finishedAt?: string;
-};
-
-type CommandResult = {
-	ok: boolean;
-	status: number | null;
-	stdout: string;
-	stderr: string;
-	error?: string;
-};
-
-type StatusTransitionNotice = {
-	id: string;
-	fromStatus: AgentStatus;
-	toStatus: AgentStatus;
-	tmuxWindowIndex?: number;
-};
-
-type AgentStatusSnapshot = {
-	status: AgentStatus;
-	tmuxWindowIndex?: number;
-};
-
-// File-based poller coordination: only the latest hot-reloaded instance runs a poller.
-// Each instance increments a generation counter; the poller checks it's still current.
-const POLLER_COORD_FILE = join(os.tmpdir(), "pi-side-agent-poller.json");
-let pollerGeneration = 0;
-
-let statusPollTimer: NodeJS.Timeout | undefined;
-let statusPollContext: ExtensionContext | undefined;
-let statusPollApi: ExtensionAPI | undefined;
-let statusPollInFlight = false;
-
-// File-based dedup for status transition messages across hot-reloaded instances.
-const DEDUP_FILE = join(os.tmpdir(), "pi-side-agent-dedup.json");
-const EMIT_DEDUP_WINDOW_MS = 2000;
-const statusSnapshotsByStateRoot = new Map<string, Map<string, AgentStatusSnapshot>>();
-let lastRenderedStatusLine: string | undefined;
-
-function nowIso() {
-	return new Date().toISOString();
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolveNow) => setTimeout(resolveNow, ms));
-}
-
-function stringifyError(err: unknown): string {
-	if (err instanceof Error) return err.message;
-	return String(err);
-}
-
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function emptyRegistry(): RegistryFile {
-	return {
-		version: REGISTRY_VERSION,
-		agents: {},
-	};
-}
-
-function isTerminalStatus(status: AgentStatus): boolean {
-	return status === "done" || status === "failed" || status === "crashed";
-}
+// ---------------------------------------------------------------------------
+// Вспомогательные функции, оставшиеся в index (не вошли в модули)
+// ---------------------------------------------------------------------------
 
 const PROMPT_LOG_PREFIX = "[side-agent][prompt]";
-const TASK_PREVIEW_MAX_CHARS = 220;
-const BACKLOG_LINE_MAX_CHARS = 240;
-const BACKLOG_TOTAL_MAX_CHARS = 2400;
-const TMUX_BACKLOG_CAPTURE_LINES = 300;
-const BACKLOG_SEPARATOR_RE = /^[-─—_=]{5,}$/u;
-const ANSI_CSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
-const ANSI_OSC_RE = /\x1b\][^\x07]*(?:\x07|\x1b\\)/g;
-const CONTROL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g;
+
 function resolveBacklogPathForRecord(stateRoot: string, record: AgentRecord): string {
 	if (record.logPath) return record.logPath;
 	if (record.runtimeDir) return join(record.runtimeDir, "backlog.log");
@@ -209,229 +77,9 @@ async function appendKickoffPromptToBacklog(
 async function setRecordStatus(_stateRoot: string, record: AgentRecord, nextStatus: AgentStatus): Promise<boolean> {
 	const previousStatus = record.status;
 	if (previousStatus === nextStatus) return false;
-
 	record.status = nextStatus;
 	record.updatedAt = nowIso();
 	return true;
-}
-
-function statusShort(status: AgentStatus): string {
-	switch (status) {
-		case "allocating_worktree":
-			return "alloc";
-		case "spawning_tmux":
-			return "tmux";
-		case "running":
-			return "run";
-		case "waiting_user":
-			return "wait";
-		case "done":
-			return "done";
-		case "failed":
-			return "fail";
-		case "crashed":
-			return "crash";
-	}
-}
-
-function statusColorRole(status: AgentStatus): "warning" | "muted" | "accent" | "error" {
-	switch (status) {
-		// Rare/transient states: highlight so they stand out.
-		case "allocating_worktree":
-		case "spawning_tmux":
-			return "warning";
-		// Normal working states: keep low visual weight.
-		case "running":
-		case "done":
-			return "muted";
-		// Needs user attention.
-		case "waiting_user":
-			return "accent";
-		// Terminal failure.
-		case "failed":
-		case "crashed":
-			return "error";
-	}
-}
-
-function stripTerminalNoise(text: string): string {
-	return text.replace(ANSI_CSI_RE, "").replace(ANSI_OSC_RE, "").replace(/\r/g, "").replace(CONTROL_RE, "");
-}
-
-function truncateWithEllipsis(text: string, maxChars: number): string {
-	if (maxChars <= 0) return "";
-	if (text.length <= maxChars) return text;
-	if (maxChars === 1) return "…";
-	return `${text.slice(0, maxChars - 1)}…`;
-}
-
-function summarizeTask(task: string): string {
-	const collapsed = stripTerminalNoise(task).replace(/\s+/g, " ").trim();
-	return truncateWithEllipsis(collapsed, TASK_PREVIEW_MAX_CHARS);
-}
-
-
-function isBacklogSeparatorLine(line: string): boolean {
-	return BACKLOG_SEPARATOR_RE.test(line.trim());
-}
-
-function splitLines(text: string): string[] {
-	return text
-		.split(/\r?\n/)
-		.filter((line, i, arr) => !(i === arr.length - 1 && line.length === 0));
-}
-
-function collectRecentBacklogLines(lines: string[], minimumLines: number): string[] {
-	if (minimumLines <= 0) return [];
-
-	const selected: string[] = [];
-	for (let i = lines.length - 1; i >= 0; i -= 1) {
-		const cleaned = stripTerminalNoise(lines[i]).trimEnd();
-		if (cleaned.length === 0) continue;
-		if (isBacklogSeparatorLine(cleaned)) continue;
-		selected.push(lines[i]);
-		if (selected.length >= minimumLines) break;
-	}
-
-	return selected.reverse();
-}
-
-function selectBacklogTailLines(text: string, minimumLines: number): string[] {
-	return collectRecentBacklogLines(splitLines(text), minimumLines);
-}
-
-function sanitizeBacklogLines(lines: string[]): string[] {
-	const out: string[] = [];
-	let remaining = BACKLOG_TOTAL_MAX_CHARS;
-
-	for (const raw of lines) {
-		if (remaining <= 0) break;
-		const cleaned = stripTerminalNoise(raw).trimEnd();
-		if (cleaned.length === 0) continue;
-		if (isBacklogSeparatorLine(cleaned)) continue;
-
-		const line = truncateWithEllipsis(cleaned, BACKLOG_LINE_MAX_CHARS);
-		if (line.length <= remaining) {
-			out.push(line);
-			remaining -= line.length + 1;
-			continue;
-		}
-
-		out.push(truncateWithEllipsis(line, remaining));
-		remaining = 0;
-		break;
-	}
-
-	return out;
-}
-
-function normalizeWaitStates(input?: string[]): { values: AgentStatus[]; error?: string } {
-	if (!input || input.length === 0) {
-		return { values: DEFAULT_WAIT_STATES };
-	}
-
-	const trimmed = [...new Set(input.map((value) => value.trim()).filter(Boolean))];
-	if (trimmed.length === 0) {
-		return { values: DEFAULT_WAIT_STATES };
-	}
-
-	const known = new Set<AgentStatus>(ALL_AGENT_STATUSES);
-	const invalid = trimmed.filter((value) => !known.has(value as AgentStatus));
-	if (invalid.length > 0) {
-		return {
-			values: [],
-			error: `Unknown status value(s): ${invalid.join(", ")}`,
-		};
-	}
-
-	return {
-		values: trimmed as AgentStatus[],
-	};
-}
-
-function tailLines(text: string, count: number): string[] {
-	return splitLines(text).slice(-count);
-}
-
-function run(command: string, args: string[], options?: { cwd?: string; input?: string }): CommandResult {
-	const result = spawnSync(command, args, {
-		cwd: options?.cwd,
-		input: options?.input,
-		encoding: "utf8",
-	});
-
-	if (result.error) {
-		return {
-			ok: false,
-			status: result.status,
-			stdout: result.stdout ?? "",
-			stderr: result.stderr ?? "",
-			error: result.error.message,
-		};
-	}
-
-	return {
-		ok: result.status === 0,
-		status: result.status,
-		stdout: result.stdout ?? "",
-		stderr: result.stderr ?? "",
-	};
-}
-
-function runOrThrow(command: string, args: string[], options?: { cwd?: string; input?: string }): CommandResult {
-	const result = run(command, args, options);
-	if (!result.ok) {
-		const reason = result.error ? `error=${result.error}` : `exit=${result.status}`;
-		throw new Error(`Command failed: ${command} ${args.join(" ")} (${reason})\n${result.stderr || result.stdout}`.trim());
-	}
-	return result;
-}
-
-function resolveGitRoot(cwd: string): string {
-	const result = run("git", ["-C", cwd, "rev-parse", "--show-toplevel"]);
-	if (result.ok) {
-		const root = result.stdout.trim();
-		if (root.length > 0) return resolve(root);
-	}
-	return resolve(cwd);
-}
-
-function getCurrentBranch(cwd: string): string {
-	const result = run("git", ["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"]);
-	if (!result.ok) return "";
-	const branch = result.stdout.trim();
-	if (!branch || branch === "HEAD") return "";
-	return branch;
-}
-
-function getStateRoot(ctx: ExtensionContext): string {
-	const fromEnv = process.env[ENV_STATE_ROOT];
-	if (fromEnv) return resolve(fromEnv);
-	return resolveGitRoot(ctx.cwd);
-}
-
-function getMetaDir(stateRoot: string): string {
-	return join(stateRoot, ".pi", "side-agents");
-}
-
-function getRegistryPath(stateRoot: string): string {
-	return join(getMetaDir(stateRoot), "registry.json");
-}
-
-function getRegistryLockPath(stateRoot: string): string {
-	return join(getMetaDir(stateRoot), "registry.lock");
-}
-
-function getRuntimeDir(stateRoot: string, agentId: string): string {
-	return join(getMetaDir(stateRoot), "runtime", agentId);
-}
-
-function getRuntimeArchiveBaseDir(stateRoot: string, agentId: string): string {
-	return join(getMetaDir(stateRoot), "runtime-archive", agentId);
-}
-
-function runtimeArchiveStamp(): string {
-	return nowIso().replace(/[:.]/g, "-");
 }
 
 async function prepareFreshRuntimeDir(stateRoot: string, agentId: string): Promise<PrepareRuntimeDirResult> {
@@ -451,10 +99,7 @@ async function prepareFreshRuntimeDir(stateRoot: string, agentId: string): Promi
 		await ensureDir(archiveBaseDir);
 		await fs.rename(runtimeDir, archiveDir);
 		await ensureDir(runtimeDir);
-		return {
-			runtimeDir,
-			archivedRuntimeDir: archiveDir,
-		};
+		return { runtimeDir, archivedRuntimeDir: archiveDir };
 	} catch (archiveErr) {
 		const archiveErrMessage = stringifyError(archiveErr);
 		try {
@@ -465,7 +110,6 @@ async function prepareFreshRuntimeDir(stateRoot: string, agentId: string): Promi
 				`Failed to prepare runtime dir ${runtimeDir}: archive failed (${archiveErrMessage}); cleanup failed (${stringifyError(cleanupErr)})`,
 			);
 		}
-
 		return {
 			runtimeDir,
 			warning: `Failed to archive existing runtime dir for ${agentId}: ${archiveErrMessage}. Removed stale runtime directory instead.`,
@@ -473,531 +117,9 @@ async function prepareFreshRuntimeDir(stateRoot: string, agentId: string): Promi
 	}
 }
 
-async function fileExists(path: string): Promise<boolean> {
-	try {
-		await fs.stat(path);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-async function ensureDir(path: string): Promise<void> {
-	await fs.mkdir(path, { recursive: true });
-}
-
-async function readJsonFile<T>(path: string): Promise<T | undefined> {
-	try {
-		const raw = await fs.readFile(path, "utf8");
-		return JSON.parse(raw) as T;
-	} catch {
-		return undefined;
-	}
-}
-
-async function atomicWrite(path: string, content: string): Promise<void> {
-	await ensureDir(dirname(path));
-	const tmp = `${path}.tmp.${process.pid}.${Math.random().toString(16).slice(2)}`;
-	await fs.writeFile(tmp, content, "utf8");
-	await fs.rename(tmp, path);
-}
-
-async function withFileLock<T>(lockPath: string, fn: () => Promise<T>): Promise<T> {
-	await ensureDir(dirname(lockPath));
-
-	const started = Date.now();
-	while (true) {
-		try {
-			const handle = await fs.open(lockPath, "wx");
-			try {
-				await handle.writeFile(JSON.stringify({ pid: process.pid, createdAt: nowIso() }) + "\n", "utf8");
-			} catch {
-				// best effort
-			}
-
-			try {
-				return await fn();
-			} finally {
-				await handle.close().catch(() => {});
-				await fs.unlink(lockPath).catch(() => {});
-			}
-		} catch (err: any) {
-			if (err?.code !== "EEXIST") throw err;
-
-			try {
-				const st = await fs.stat(lockPath);
-				const ageMs = Date.now() - st.mtimeMs;
-				if (ageMs > 30_000) {
-					await fs.unlink(lockPath).catch(() => {});
-					continue;
-				}
-				// Check if the lock holder is still alive (stale lock after crash/reboot)
-				if (ageMs > 2_000) {
-					try {
-						const raw = await fs.readFile(lockPath, "utf8");
-						const data = JSON.parse(raw);
-						if (typeof data.pid === "number") {
-							try {
-								process.kill(data.pid, 0); // signal 0 = existence check
-							} catch {
-								// PID doesn't exist → stale lock
-								await fs.unlink(lockPath).catch(() => {});
-								continue;
-							}
-						}
-					} catch {
-						// If we can't read/parse the lock, fall through to normal timeout
-					}
-				}
-			} catch {
-				// ignore
-			}
-
-			if (Date.now() - started > 10_000) {
-				throw new Error(`Timed out waiting for lock ${lockPath}`);
-			}
-			await sleep(40 + Math.random() * 80);
-		}
-	}
-}
-
-async function loadRegistry(stateRoot: string): Promise<RegistryFile> {
-	const registryPath = getRegistryPath(stateRoot);
-	const parsed = await readJsonFile<RegistryFile>(registryPath);
-	if (!parsed || typeof parsed !== "object") return emptyRegistry();
-	if (parsed.version !== REGISTRY_VERSION || typeof parsed.agents !== "object" || parsed.agents === null) {
-		return emptyRegistry();
-	}
-	return parsed;
-}
-
-async function saveRegistry(stateRoot: string, registry: RegistryFile): Promise<void> {
-	const registryPath = getRegistryPath(stateRoot);
-	await atomicWrite(registryPath, JSON.stringify(registry, null, 2) + "\n");
-}
-
-async function mutateRegistry(stateRoot: string, mutator: (registry: RegistryFile) => Promise<void> | void): Promise<RegistryFile> {
-	const lockPath = getRegistryLockPath(stateRoot);
-	return withFileLock(lockPath, async () => {
-		const registry = await loadRegistry(stateRoot);
-		const before = JSON.stringify(registry);
-		await mutator(registry);
-		const after = JSON.stringify(registry);
-		if (after !== before) {
-			await saveRegistry(stateRoot, registry);
-		}
-		return registry;
-	});
-}
-
-/** Sanitize a raw string into a kebab-case slug suitable for branch names and agent IDs. */
-function sanitizeSlug(raw: string): string {
-	return raw
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.split("-")
-		.filter(Boolean)
-		.slice(0, 3)
-		.join("-");
-}
-
-/** Turn a task description into a slug by taking the first 3 meaningful words. */
-function slugFromTask(task: string): string {
-	const stopWords = new Set(["a", "an", "the", "to", "in", "on", "at", "of", "for", "and", "or", "is", "it", "be", "do", "with"]);
-	const words = task
-		.replace(/[^a-zA-Z0-9\s]/g, " ")
-		.split(/\s+/)
-		.map((w) => w.toLowerCase())
-		.filter((w) => w.length > 0 && !stopWords.has(w));
-	const slug = words.slice(0, 3).join("-");
-	return slug || "agent";
-}
-
-
-/** Collect all agent IDs currently known in the registry or checked out as side-agent branches. */
-function existingAgentIds(registry: RegistryFile, repoRoot: string): Set<string> {
-	const ids = new Set<string>(Object.keys(registry.agents));
-
-	const listed = run("git", ["-C", repoRoot, "worktree", "list", "--porcelain"]);
-	if (listed.ok) {
-		for (const line of listed.stdout.split(/\r?\n/)) {
-			if (!line.startsWith("branch ")) continue;
-			const branchRef = line.slice("branch ".length).trim();
-			if (!branchRef || branchRef === "(detached)") continue;
-			const branch = branchRef.startsWith("refs/heads/") ? branchRef.slice("refs/heads/".length) : branchRef;
-			if (branch.startsWith("side-agent/")) {
-				ids.add(branch.slice("side-agent/".length));
-			}
-		}
-	}
-
-	return ids;
-}
-
-/** Deduplicate a slug against existing IDs by appending -2, -3, etc. */
-function deduplicateSlug(slug: string, existing: Set<string>): string {
-	if (!existing.has(slug)) return slug;
-	for (let i = 2; ; i++) {
-		const candidate = `${slug}-${i}`;
-		if (!existing.has(candidate)) return candidate;
-	}
-}
-
-async function writeWorktreeLock(worktreePath: string, payload: Record<string, unknown>): Promise<void> {
-	const lockPath = join(worktreePath, ".pi", "active.lock");
-	await ensureDir(dirname(lockPath));
-	await atomicWrite(lockPath, JSON.stringify(payload, null, 2) + "\n");
-}
-
-async function updateWorktreeLock(worktreePath: string, patch: Record<string, unknown>): Promise<void> {
-	const lockPath = join(worktreePath, ".pi", "active.lock");
-	const current = (await readJsonFile<Record<string, unknown>>(lockPath)) ?? {};
-	await writeWorktreeLock(worktreePath, { ...current, ...patch });
-}
-
-async function cleanupWorktreeLockBestEffort(worktreePath?: string, agentId?: string): Promise<void> {
-	if (!worktreePath) return;
-	const lockPath = join(worktreePath, ".pi", "active.lock");
-	// If an agentId is provided, verify the lock actually belongs to this agent
-	// before deleting — another agent may have since claimed the same worktree.
-	if (agentId) {
-		try {
-			const lock = await readJsonFile<Record<string, unknown>>(lockPath);
-			if (lock && typeof lock.agentId === "string" && lock.agentId !== agentId) {
-				return;
-			}
-		} catch {
-			// If we can't read the lock, proceed with deletion attempt
-		}
-	}
-	await fs.unlink(lockPath).catch(() => {});
-}
-
-function listRegisteredWorktrees(repoRoot: string): Set<string> {
-	const result = runOrThrow("git", ["-C", repoRoot, "worktree", "list", "--porcelain"]);
-	const set = new Set<string>();
-	for (const line of result.stdout.split(/\r?\n/)) {
-		if (line.startsWith("worktree ")) {
-			set.add(resolve(line.slice("worktree ".length).trim()));
-		}
-	}
-	return set;
-}
-
-type WorktreeSlot = {
-	index: number;
-	path: string;
-};
-
-type OrphanWorktreeLock = {
-	worktreePath: string;
-	lockPath: string;
-	lockAgentId?: string;
-	lockPid?: number;
-	lockTmuxWindowId?: string;
-	blockers: string[];
-};
-
-type OrphanWorktreeLockScan = {
-	reclaimable: OrphanWorktreeLock[];
-	blocked: OrphanWorktreeLock[];
-};
-
-async function listWorktreeSlots(repoRoot: string): Promise<WorktreeSlot[]> {
-	const parent = dirname(repoRoot);
-	const prefix = `${basename(repoRoot)}-agent-worktree-`;
-	const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\d{4})$`);
-
-	const entries = await fs.readdir(parent, { withFileTypes: true });
-	const slots: WorktreeSlot[] = [];
-	for (const entry of entries) {
-		if (!entry.isDirectory()) continue;
-		const match = entry.name.match(re);
-		if (!match) continue;
-		const index = Number(match[1]);
-		if (!Number.isFinite(index)) continue;
-		slots.push({
-			index,
-			path: join(parent, entry.name),
-		});
-	}
-	slots.sort((a, b) => a.index - b.index);
-	return slots;
-}
-
-function parseOptionalPid(value: unknown): number | undefined {
-	if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value > 0) {
-		return value;
-	}
-	if (typeof value === "string" && /^\d+$/.test(value)) {
-		const parsed = Number(value);
-		if (Number.isFinite(parsed) && parsed > 0) return parsed;
-	}
-	return undefined;
-}
-
-function isPidAlive(pid?: number): boolean {
-	if (pid === undefined) return false;
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (err: any) {
-		return err?.code === "EPERM";
-	}
-}
-
-function summarizeOrphanLock(lock: OrphanWorktreeLock): string {
-	const details: string[] = [];
-	if (lock.lockAgentId) details.push(`agent:${lock.lockAgentId}`);
-	if (lock.lockTmuxWindowId) details.push(`tmux:${lock.lockTmuxWindowId}`);
-	if (lock.lockPid !== undefined) details.push(`pid:${lock.lockPid}`);
-	if (details.length === 0) return lock.worktreePath;
-	return `${lock.worktreePath} (${details.join(" ")})`;
-}
-
-async function scanOrphanWorktreeLocks(repoRoot: string, registry: RegistryFile): Promise<OrphanWorktreeLockScan> {
-	const slots = await listWorktreeSlots(repoRoot);
-	const reclaimable: OrphanWorktreeLock[] = [];
-	const blocked: OrphanWorktreeLock[] = [];
-
-	for (const slot of slots) {
-		const lockPath = join(slot.path, ".pi", "active.lock");
-		if (!(await fileExists(lockPath))) continue;
-
-		const raw = (await readJsonFile<Record<string, unknown>>(lockPath)) ?? {};
-		const lockAgentId = typeof raw.agentId === "string" ? raw.agentId : undefined;
-		if (lockAgentId && registry.agents[lockAgentId]) {
-			continue;
-		}
-
-		const lockPid = parseOptionalPid(raw.pid);
-		const lockTmuxWindowId = typeof raw.tmuxWindowId === "string" ? raw.tmuxWindowId : undefined;
-
-		const blockers: string[] = [];
-		if (isPidAlive(lockPid)) {
-			blockers.push(`pid ${lockPid} is still alive`);
-		}
-		if (lockTmuxWindowId && tmuxWindowExists(lockTmuxWindowId)) {
-			blockers.push(`tmux window ${lockTmuxWindowId} is active`);
-		}
-
-		const candidate: OrphanWorktreeLock = {
-			worktreePath: slot.path,
-			lockPath,
-			lockAgentId,
-			lockPid,
-			lockTmuxWindowId,
-			blockers,
-		};
-
-		if (blockers.length > 0) {
-			blocked.push(candidate);
-		} else {
-			reclaimable.push(candidate);
-		}
-	}
-
-	return { reclaimable, blocked };
-}
-
-async function reclaimOrphanWorktreeLocks(locks: OrphanWorktreeLock[]): Promise<{
-	removed: string[];
-	failed: Array<{ lockPath: string; error: string }>;
-}> {
-	const removed: string[] = [];
-	const failed: Array<{ lockPath: string; error: string }> = [];
-
-	for (const lock of locks) {
-		try {
-			await fs.unlink(lock.lockPath);
-			removed.push(lock.lockPath);
-		} catch (err: any) {
-			if (err?.code === "ENOENT") continue;
-			failed.push({ lockPath: lock.lockPath, error: stringifyError(err) });
-		}
-	}
-
-	return { removed, failed };
-}
-
-async function syncParallelAgentPiFiles(parentRepoRoot: string, worktreePath: string): Promise<void> {
-	const parentPiDir = join(parentRepoRoot, ".pi");
-	if (!(await fileExists(parentPiDir))) return;
-
-	const sourceEntries = await fs.readdir(parentPiDir, { withFileTypes: true });
-	const names = sourceEntries
-		.filter((entry) => entry.name.startsWith("side-agent-"))
-		.map((entry) => entry.name);
-	if (names.length === 0) return;
-
-	const worktreePiDir = join(worktreePath, ".pi");
-	await ensureDir(worktreePiDir);
-
-	for (const name of names) {
-		const source = join(parentPiDir, name);
-		const target = join(worktreePiDir, name);
-
-		let shouldLink = true;
-		try {
-			const st = await fs.lstat(target);
-			if (st.isSymbolicLink()) {
-				const existing = await fs.readlink(target);
-				if (resolve(dirname(target), existing) === resolve(source)) {
-					shouldLink = false;
-				}
-			}
-			if (shouldLink) {
-				await fs.rm(target, { recursive: true, force: true });
-			}
-		} catch {
-			// missing target
-		}
-
-		if (shouldLink) {
-			await fs.symlink(source, target);
-		}
-	}
-}
-
-async function allocateWorktree(options: {
-	repoRoot: string;
-	stateRoot: string;
-	agentId: string;
-	parentSessionId?: string;
-}): Promise<AllocateWorktreeResult> {
-	const { repoRoot, stateRoot, agentId, parentSessionId } = options;
-
-	const warnings: string[] = [];
-	const branch = `side-agent/${agentId}`;
-	const mainHead = runOrThrow("git", ["-C", repoRoot, "rev-parse", "HEAD"]).stdout.trim();
-
-	// Clean up stale/prunable worktree references (e.g. user deleted a worktree
-	// directory manually) before scanning so listRegisteredWorktrees() is accurate.
-	run("git", ["-C", repoRoot, "worktree", "prune"]);
-
-	const registry = await loadRegistry(stateRoot);
-	const slots = await listWorktreeSlots(repoRoot);
-	const registered = listRegisteredWorktrees(repoRoot);
-
-	let chosen: WorktreeSlot | undefined;
-	let maxIndex = 0;
-
-	// Build a set of worktree paths claimed by active (non-terminal) agents in the registry,
-	// so we can reject slots even if the lock file was inadvertently cleaned up.
-	const claimedByActiveAgent = new Set<string>();
-	for (const record of Object.values(registry.agents)) {
-		if (record.id !== agentId && record.worktreePath && !isTerminalStatus(record.status)) {
-			claimedByActiveAgent.add(resolve(record.worktreePath));
-		}
-	}
-
-	for (const slot of slots) {
-		maxIndex = Math.max(maxIndex, slot.index);
-		const resolvedSlotPath = resolve(slot.path);
-		const lockPath = join(slot.path, ".pi", "active.lock");
-
-		// Check 1: lock file on disk.
-		if (await fileExists(lockPath)) {
-			const lock = await readJsonFile<Record<string, unknown>>(lockPath);
-			const lockAgentId = typeof lock?.agentId === "string" ? lock.agentId : undefined;
-			if (!lockAgentId || !registry.agents[lockAgentId]) {
-				warnings.push(`Locked worktree is not tracked in registry: ${slot.path}`);
-			}
-			continue;
-		}
-
-		// Check 2: registry claims this worktree for an active agent (even if lock is missing).
-		if (claimedByActiveAgent.has(resolvedSlotPath)) {
-			warnings.push(`Worktree claimed by active agent in registry (missing lock): ${slot.path}`);
-			continue;
-		}
-
-		const isRegistered = registered.has(resolve(slot.path));
-		if (isRegistered) {
-			const status = run("git", ["-C", slot.path, "status", "--porcelain"]);
-			if (!status.ok) {
-				warnings.push(`Could not inspect unlocked worktree, skipping: ${slot.path}`);
-				continue;
-			}
-			if (status.stdout.trim().length > 0) {
-				warnings.push(`Unlocked worktree has local changes, skipping: ${slot.path}`);
-				continue;
-			}
-		} else {
-			const entries = await fs.readdir(slot.path).catch(() => []);
-			if (entries.length > 0) {
-				warnings.push(`Unlocked slot is not a registered worktree and not empty, skipping: ${slot.path}`);
-				continue;
-			}
-		}
-
-		chosen = slot;
-		break;
-	}
-
-	if (!chosen) {
-		const next = maxIndex + 1 || 1;
-		const parent = dirname(repoRoot);
-		const name = `${basename(repoRoot)}-agent-worktree-${String(next).padStart(4, "0")}`;
-		chosen = { index: next, path: join(parent, name) };
-	}
-
-	const chosenPath = chosen.path;
-	const chosenRegistered = registered.has(resolve(chosenPath));
-
-	if (chosenRegistered && (await fileExists(chosenPath))) {
-		// Remember old branch so we can try to clean it up after switching away.
-		const oldBranch = getCurrentBranch(chosenPath);
-
-		run("git", ["-C", chosenPath, "merge", "--abort"]);
-		runOrThrow("git", ["-C", chosenPath, "reset", "--hard", mainHead]);
-		runOrThrow("git", ["-C", chosenPath, "clean", "-fd"]);
-		runOrThrow("git", ["-C", chosenPath, "checkout", "-B", branch, mainHead]);
-
-		// Best-effort cleanup: delete old branch if fully merged (-d, not -D).
-		if (oldBranch && oldBranch !== branch) {
-			run("git", ["-C", repoRoot, "branch", "-d", oldBranch]);
-		}
-	} else {
-		// Defensive: if git still thinks this is registered but the directory is
-		// gone (shouldn't happen after the prune above, but just in case),
-		// run prune again so `git worktree add` below won't conflict.
-		if (chosenRegistered) {
-			run("git", ["-C", repoRoot, "worktree", "prune"]);
-			warnings.push(`Pruned stale worktree reference for slot ${chosenPath}`);
-		}
-		if (await fileExists(chosenPath)) {
-			const entries = await fs.readdir(chosenPath).catch(() => []);
-			if (entries.length > 0) {
-				throw new Error(`Cannot use worktree slot ${chosenPath}: directory exists and is not empty`);
-			}
-		}
-		await ensureDir(dirname(chosenPath));
-		runOrThrow("git", ["-C", repoRoot, "worktree", "add", "-B", branch, chosenPath, mainHead]);
-	}
-
-	await ensureDir(join(chosenPath, ".pi"));
-	await syncParallelAgentPiFiles(repoRoot, chosenPath);
-	await writeWorktreeLock(chosenPath, {
-		agentId,
-		sessionId: parentSessionId,
-		parentSessionId,
-		pid: process.pid,
-		branch,
-		startedAt: nowIso(),
-	});
-
-	return {
-		worktreePath: chosenPath,
-		slotIndex: chosen.index,
-		branch,
-		warnings,
-	};
-}
-
 async function buildKickoffPrompt(ctx: ExtensionContext, task: string, _includeSummary: boolean): Promise<{ prompt: string; warning?: string }> {
 	const parentSession = ctx.sessionManager.getSessionFile();
+
 	const prompt = [
 		task,
 		"",
@@ -1036,14 +158,14 @@ PROMPT_FILE=${shellQuote(params.promptPath)}
 EXIT_FILE=${shellQuote(params.exitFile)}
 MODEL_SPEC=${shellQuote(params.modelSpec ?? "")}
 RUNTIME_DIR=${shellQuote(params.runtimeDir)}
-START_SCRIPT=\"$WORKTREE/.pi/side-agent-start.sh\"
-CHILD_SKILLS_DIR=\"$WORKTREE/.pi/side-agent-skills\"
+START_SCRIPT="$WORKTREE/.pi/side-agent-start.sh"
+CHILD_SKILLS_DIR="$WORKTREE/.pi/side-agent-skills"
 
-export ${ENV_AGENT_ID}=\"$AGENT_ID\"
-export ${ENV_PARENT_SESSION}=\"$PARENT_SESSION\"
-export ${ENV_PARENT_REPO}=\"$PARENT_REPO\"
-export ${ENV_STATE_ROOT}=\"$STATE_ROOT\"
-export ${ENV_RUNTIME_DIR}=\"$RUNTIME_DIR\"
+export PI_SIDE_AGENT_ID="$AGENT_ID"
+export PI_SIDE_PARENT_SESSION="$PARENT_SESSION"
+export PI_SIDE_PARENT_REPO="$PARENT_REPO"
+export PI_SIDE_AGENTS_ROOT="$STATE_ROOT"
+export PI_SIDE_RUNTIME_DIR="$RUNTIME_DIR"
 
 iso_now() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
@@ -1074,7 +196,6 @@ if [[ -n "$MODEL_SPEC" ]]; then
   PI_CMD+=(--model "$MODEL_SPEC")
 fi
 if [[ -d "$CHILD_SKILLS_DIR" ]]; then
-  # agent-setup writes the child-only finish skill here; load it explicitly.
   PI_CMD+=(--skill "$CHILD_SKILLS_DIR")
 fi
 
@@ -1095,204 +216,13 @@ tmux kill-window -t "$WINDOW_ID" || true
 `;
 }
 
-function ensureTmuxReady(): void {
-	const version = run("tmux", ["-V"]);
-	if (!version.ok) {
-		throw new Error("tmux is required for /agent but was not found or is not working");
-	}
-
-	const session = run("tmux", ["display-message", "-p", "#S"]);
-	if (!session.ok) {
-		throw new Error("/agent must be run from inside tmux (current tmux session was not detected)");
-	}
-}
-
-function getCurrentTmuxSession(): string {
-	const result = runOrThrow("tmux", ["display-message", "-p", "#S"]);
-	const value = result.stdout.trim();
-	if (!value) throw new Error("Failed to determine current tmux session");
-	return value;
-}
-
-function createTmuxWindow(tmuxSession: string, name: string): { windowId: string; windowIndex: number } {
-	const result = runOrThrow("tmux", [
-		"new-window",
-		"-d",
-		"-t",
-		`${tmuxSession}:`,
-		"-P",
-		"-F",
-		"#{window_id} #{window_index}",
-		"-n",
-		name,
-	]);
-	const out = result.stdout.trim();
-	const [windowId, indexRaw] = out.split(/\s+/);
-	const windowIndex = Number(indexRaw);
-	if (!windowId || !Number.isFinite(windowIndex)) {
-		throw new Error(`Unable to parse tmux window identity: ${out}`);
-	}
-	return { windowId, windowIndex };
-}
-
-function tmuxWindowExists(windowId: string): boolean {
-	const result = run("tmux", ["display-message", "-p", "-t", windowId, "#{window_id}"]);
-	return result.ok && result.stdout.trim() === windowId;
-}
-
-function tmuxPipePaneToFile(windowId: string, logPath: string): void {
-	runOrThrow("tmux", ["pipe-pane", "-t", windowId, "-o", `cat >> ${shellQuote(logPath)}`]);
-}
-
-/** Wait for a shell prompt to appear in a newly created tmux window. */
-function tmuxInterrupt(windowId: string): void {
-	run("tmux", ["send-keys", "-t", windowId, "C-c"]);
-}
-
-function tmuxSendPrompt(windowId: string, prompt: string): void {
-	const loaded = run("tmux", ["load-buffer", "-"], { input: prompt });
-	if (!loaded.ok) {
-		throw new Error(`Failed to send input to tmux window ${windowId}: ${loaded.stderr || loaded.error || "unknown error"}`);
-	}
-	runOrThrow("tmux", ["paste-buffer", "-d", "-t", windowId]);
-	runOrThrow("tmux", ["send-keys", "-t", windowId, "C-m"]);
-}
-
-function tmuxCaptureTail(windowId: string, lines = 10): string[] {
-	const captured = run("tmux", ["capture-pane", "-p", "-t", windowId, "-S", `-${TMUX_BACKLOG_CAPTURE_LINES}`]);
-	if (!captured.ok) return [];
-	return tailLines(captured.stdout, lines);
-}
-
-/** Capture the currently visible tmux pane content (no scrollback). */
-function tmuxCaptureVisible(windowId: string): string[] {
-	const captured = run("tmux", ["capture-pane", "-p", "-t", windowId]);
-	if (!captured.ok) return [];
-	return splitLines(captured.stdout);
-}
-
-type RefreshRuntimeResult = {
-	removeFromRegistry: boolean;
-};
-
-async function refreshOneAgentRuntime(stateRoot: string, record: AgentRecord): Promise<RefreshRuntimeResult> {
-	if (record.status === "done") {
-		await cleanupWorktreeLockBestEffort(record.worktreePath, record.id);
-		return { removeFromRegistry: true };
-	}
-
-	if (record.exitFile && (await fileExists(record.exitFile))) {
-		const exit = (await readJsonFile<ExitMarker>(record.exitFile)) ?? {};
-		if (typeof exit.exitCode === "number") {
-			record.exitCode = exit.exitCode;
-			record.finishedAt = exit.finishedAt ?? record.finishedAt ?? nowIso();
-			const changed = await setRecordStatus(stateRoot, record, exit.exitCode === 0 ? "done" : "failed");
-			if (!changed) {
-				record.updatedAt = nowIso();
-			}
-			if (exit.exitCode === 0) {
-				// Only release worktree lock for successful agents; failed agents
-				// keep it so the workspace is not reused until explicitly cleared.
-				await cleanupWorktreeLockBestEffort(record.worktreePath, record.id);
-				return { removeFromRegistry: true };
-			}
-			return { removeFromRegistry: false };
-		}
-	}
-
-	if (!record.tmuxWindowId) {
-		return { removeFromRegistry: false };
-	}
-
-	const live = tmuxWindowExists(record.tmuxWindowId);
-	if (live) {
-		if (record.status === "allocating_worktree" || record.status === "spawning_tmux") {
-			await setRecordStatus(stateRoot, record, "running");
-		}
-		return { removeFromRegistry: false };
-	}
-
-	if (!isTerminalStatus(record.status)) {
-		record.finishedAt = record.finishedAt ?? nowIso();
-		await setRecordStatus(stateRoot, record, "crashed");
-		if (!record.error) {
-			record.error = "tmux window disappeared before an exit marker was recorded";
-		}
-		// Do NOT release worktree lock for crashed agents; the workspace
-		// is blocked from reuse until the agent is explicitly cleared.
-	}
-
-	return { removeFromRegistry: false };
-}
-
-async function refreshAgent(stateRoot: string, agentId: string): Promise<AgentRecord | undefined> {
-	let snapshot: AgentRecord | undefined;
-	await mutateRegistry(stateRoot, async (registry) => {
-		const record = registry.agents[agentId];
-		if (!record) return;
-		const refreshed = await refreshOneAgentRuntime(stateRoot, record);
-		if (refreshed.removeFromRegistry) {
-			delete registry.agents[agentId];
-			return;
-		}
-		snapshot = JSON.parse(JSON.stringify(record)) as AgentRecord;
-	});
-	return snapshot;
-}
-
-async function refreshAllAgents(stateRoot: string): Promise<RegistryFile> {
-	// Don't create the meta dir just to discover there are no agents.
-	if (!(await fileExists(getMetaDir(stateRoot)))) return emptyRegistry();
-	return mutateRegistry(stateRoot, async (registry) => {
-		for (const [agentId, record] of Object.entries(registry.agents)) {
-			const refreshed = await refreshOneAgentRuntime(stateRoot, record);
-			if (refreshed.removeFromRegistry) {
-				delete registry.agents[agentId];
-			}
-		}
-	});
-}
-
-async function getBacklogTail(record: AgentRecord, lines = 10): Promise<string[]> {
-	// Prefer the visible tmux pane — it shows what's actually on screen
-	// and avoids noise from TUI footer redraws that pollute the backlog file.
-	if (record.tmuxWindowId && tmuxWindowExists(record.tmuxWindowId)) {
-		const visible = tmuxCaptureVisible(record.tmuxWindowId);
-		const result = sanitizeBacklogLines(collectRecentBacklogLines(visible, lines));
-		if (result.length > 0) return result;
-	}
-
-	// Fall back to the backlog log file (e.g. tmux window gone but file remains).
-	if (record.logPath && (await fileExists(record.logPath))) {
-		try {
-			const raw = await fs.readFile(record.logPath, "utf8");
-			const tailed = sanitizeBacklogLines(selectBacklogTailLines(raw, lines));
-			if (tailed.length > 0) return tailed;
-		} catch {
-			// fall through
-		}
-	}
-
-	return [];
-}
-
-function renderInfoMessage(pi: ExtensionAPI, ctx: ExtensionContext, title: string, lines: string[]): void {
-	const content = [title, "", ...lines].join("\n");
-	if (ctx.hasUI) {
-		pi.sendMessage({
-			customType: "side-agents-report",
-			content,
-			display: true,
-		});
-	} else {
-		console.log(content);
-	}
-}
+// ---------------------------------------------------------------------------
+// Model resolution helpers
+// ---------------------------------------------------------------------------
 
 type ModeFileSpec = { provider?: string; modelId?: string; thinkingLevel?: string };
 type ParsedModesFile = { currentMode?: string; modes?: Record<string, ModeFileSpec> };
 
-/** Read and parse modes.json, checking project-level first, then global. */
 async function readModesFile(cwd: string): Promise<{ parsed: ParsedModesFile; path: string } | undefined> {
 	const homedir = os.homedir();
 	const agentDir = process.env.PI_CODING_AGENT_DIR
@@ -1325,7 +255,6 @@ function modeSpecToModelSpec(spec: ModeFileSpec): string | undefined {
 		: `${spec.provider}/${spec.modelId}`;
 }
 
-/** Resolve a pi-amplike mode name to a model spec by reading modes.json. */
 async function resolveModeToModelSpec(cwd: string, modeName: string): Promise<{ modelSpec?: string; warning?: string }> {
 	const file = await readModesFile(cwd);
 	if (!file) return { warning: "Could not read modes.json" };
@@ -1339,10 +268,6 @@ async function resolveModeToModelSpec(cwd: string, modeName: string): Promise<{ 
 	return { modelSpec };
 }
 
-/**
- * Infer the current mode name by matching the active model+thinking level
- * against modes.json definitions. Returns the mode's full model spec if found.
- */
 async function inferCurrentModeModelSpec(
 	cwd: string,
 	ctx: ExtensionContext,
@@ -1382,11 +307,7 @@ function parseAgentCommandArgs(raw: string): { task: string; model?: string; mod
 		rest = rest.replace(modeMatch[0], " ");
 	}
 
-	return {
-		task: rest.trim(),
-		model,
-		mode,
-	};
+	return { task: rest.trim(), model, mode };
 }
 
 const THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh"]);
@@ -1395,14 +316,9 @@ function splitModelPatternAndThinking(raw: string): { pattern: string; thinking?
 	const trimmed = raw.trim();
 	const colon = trimmed.lastIndexOf(":");
 	if (colon <= 0 || colon === trimmed.length - 1) return { pattern: trimmed };
-
 	const suffix = trimmed.slice(colon + 1);
 	if (!THINKING_LEVELS.has(suffix)) return { pattern: trimmed };
-
-	return {
-		pattern: trimmed.slice(0, colon),
-		thinking: suffix,
-	};
+	return { pattern: trimmed.slice(0, colon), thinking: suffix };
 }
 
 function withThinking(modelSpec: string, thinking?: string): string {
@@ -1416,7 +332,6 @@ async function resolveModelSpecForChild(
 ): Promise<{ modelSpec?: string; warning?: string }> {
 	const currentModelSpec = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined;
 	if (!requested || requested.trim().length === 0) {
-		// Try to inherit the full mode (model + thinking level) from modes.json
 		if (thinkingLevel !== undefined) {
 			const modeSpec = await inferCurrentModeModelSpec(ctx.cwd, ctx, thinkingLevel);
 			if (modeSpec) return { modelSpec: modeSpec };
@@ -1432,9 +347,7 @@ async function resolveModelSpecForChild(
 	const { pattern, thinking } = splitModelPatternAndThinking(trimmed);
 
 	if (ctx.model && pattern === ctx.model.id) {
-		return {
-			modelSpec: withThinking(`${ctx.model.provider}/${ctx.model.id}`, thinking),
-		};
+		return { modelSpec: withThinking(`${ctx.model.provider}/${ctx.model.id}`, thinking) };
 	}
 
 	try {
@@ -1443,21 +356,16 @@ async function resolveModelSpecForChild(
 
 		if (exact.length === 1) {
 			const match = exact[0];
-			return {
-				modelSpec: withThinking(`${match.provider}/${match.id}`, thinking),
-			};
+			return { modelSpec: withThinking(`${match.provider}/${match.id}`, thinking) };
 		}
 
 		if (exact.length > 1) {
 			if (ctx.model) {
 				const preferred = exact.find((model) => model.provider === ctx.model?.provider);
 				if (preferred) {
-					return {
-						modelSpec: withThinking(`${preferred.provider}/${preferred.id}`, thinking),
-					};
+					return { modelSpec: withThinking(`${preferred.provider}/${preferred.id}`, thinking) };
 				}
 			}
-
 			const providers = [...new Set(exact.map((model) => model.provider))].sort();
 			return {
 				modelSpec: trimmed,
@@ -1465,18 +373,15 @@ async function resolveModelSpecForChild(
 			};
 		}
 	} catch {
-		// Best effort only; keep raw model pattern.
+		// Best effort only
 	}
 
 	return { modelSpec: trimmed };
 }
 
-function normalizeAgentId(raw: string): string {
-	const trimmed = raw.trim();
-	if (!trimmed) return "";
-	const firstToken = trimmed.split(/\s+/, 1)[0];
-	return firstToken ?? "";
-}
+// ---------------------------------------------------------------------------
+// Core operations
+// ---------------------------------------------------------------------------
 
 async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: StartAgentParams): Promise<StartAgentResult> {
 	ensureTmuxReady();
@@ -1565,8 +470,6 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 		const modelSpec = resolvedModel.modelSpec;
 		if (resolvedModel.warning) aggregatedWarnings.push(resolvedModel.warning);
 
-		// Create tmux window first to obtain windowId, then write launch script
-		// with the correct windowId baked in, then start the script.
 		const tmuxSession = getCurrentTmuxSession();
 		const { windowId, windowIndex } = createTmuxWindow(tmuxSession, `agent-${agentId}`);
 		spawnedWindowId = windowId;
@@ -1592,8 +495,6 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 		});
 
 		tmuxPipePaneToFile(windowId, logPath);
-		// Brief pause for the new shell to initialise (~100ms), then send the
-		// launch command. Much faster than the old tmuxWaitForShellReady polling.
 		await sleep(100);
 		runOrThrow("tmux", ["send-keys", "-t", windowId, `bash ${shellQuote(launchScriptPath)}`, "C-m"]);
 
@@ -1651,55 +552,17 @@ async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: Start
 	}
 }
 
-async function agentCheckPayload(stateRoot: string, agentId: string): Promise<Record<string, unknown>> {
-	const normalizedId = normalizeAgentId(agentId);
-	if (!normalizedId) {
-		return {
-			ok: false,
-			error: "No agent id was provided",
-		};
-	}
-
-	const record = await refreshAgent(stateRoot, normalizedId);
-	if (!record) {
-		return {
-			ok: false,
-			error: `Unknown agent id: ${normalizedId}`,
-		};
-	}
-
-	const backlog = await getBacklogTail(record, 10);
-
-	return {
-		ok: true,
-		agent: {
-			id: record.id,
-			status: record.status,
-			tmuxWindowId: record.tmuxWindowId,
-			tmuxWindowIndex: record.tmuxWindowIndex,
-			worktreePath: record.worktreePath,
-			branch: record.branch,
-			task: summarizeTask(record.task),
-			startedAt: record.startedAt,
-			finishedAt: record.finishedAt,
-			exitCode: record.exitCode,
-			error: record.error,
-			warnings: record.warnings ?? [],
-		},
-		backlog,
-	};
-}
-
 async function sendToAgent(stateRoot: string, agentId: string, prompt: string): Promise<{ ok: boolean; message: string }> {
 	const normalizedId = normalizeAgentId(agentId);
 	if (!normalizedId) {
 		return { ok: false, message: "No agent id was provided" };
 	}
 
-	const record = await refreshAgent(stateRoot, normalizedId);
-	if (!record) {
-		return { ok: false, message: `Unknown agent id: ${normalizedId}` };
+	const payload = await agentCheckPayload(stateRoot, normalizedId);
+	if (!payload.ok) {
+		return { ok: false, message: (payload.error as string) || `Unknown agent id: ${normalizedId}` };
 	}
+	const record = payload.agent as any;
 	if (!record.tmuxWindowId) {
 		return { ok: false, message: `Agent ${normalizedId} has no tmux window id recorded` };
 	}
@@ -1707,18 +570,16 @@ async function sendToAgent(stateRoot: string, agentId: string, prompt: string): 
 		return { ok: false, message: `Agent ${normalizedId} tmux window is not active` };
 	}
 
-	let payload = prompt;
-	if (payload.startsWith("!")) {
+	let sendPayload = prompt;
+	if (sendPayload.startsWith("!")) {
 		tmuxInterrupt(record.tmuxWindowId);
-		payload = payload.slice(1).trimStart();
-		if (payload.length > 0) {
-			// Brief pause so Pi can finish handling the interrupt and return to an
-			// interactive prompt before the follow-up text lands in the pane.
+		sendPayload = sendPayload.slice(1).trimStart();
+		if (sendPayload.length > 0) {
 			await sleep(300);
 		}
 	}
-	if (payload.length > 0) {
-		tmuxSendPrompt(record.tmuxWindowId, payload);
+	if (sendPayload.length > 0) {
+		tmuxSendPrompt(record.tmuxWindowId, sendPayload);
 	}
 
 	await mutateRegistry(stateRoot, async (registry) => {
@@ -1744,7 +605,6 @@ async function setChildRuntimeStatus(ctx: ExtensionContext, nextStatus: AgentSta
 		const record = registry.agents[agentId];
 		if (!record) return;
 		if (isTerminalStatus(record.status)) return;
-
 		const changed = await setRecordStatus(stateRoot, record, nextStatus);
 		if (!changed) {
 			record.updatedAt = nowIso();
@@ -1784,8 +644,6 @@ async function waitForAny(
 			const checked = await agentCheckPayload(stateRoot, id);
 			const ok = checked.ok === true;
 			if (!ok) {
-				// Agent was known before but disappeared — it exited successfully
-				// and was auto-pruned from the registry. Report it as done.
 				if (knownIds.has(id)) {
 					return {
 						ok: true,
@@ -1806,8 +664,6 @@ async function waitForAny(
 			}
 		}
 
-		// Fail immediately if any provided ID was unrecognised on the very first
-		// poll — unknown agents will never become known, so waiting is pointless.
 		if (firstPass && unknownOnFirstPass.length > 0) {
 			return {
 				ok: false,
@@ -1877,108 +733,16 @@ async function ensureChildSessionLinked(pi: ExtensionAPI, ctx: ExtensionContext)
 	}
 }
 
-function isChildRuntime(): boolean {
-	return Boolean(process.env[ENV_AGENT_ID]);
-}
-
-function collectStatusTransitions(stateRoot: string, agents: AgentRecord[]): StatusTransitionNotice[] {
-	const previous = statusSnapshotsByStateRoot.get(stateRoot);
-	const next = new Map<string, AgentStatusSnapshot>();
-	const transitions: StatusTransitionNotice[] = [];
-
-	for (const record of agents) {
-		const currentSnapshot: AgentStatusSnapshot = {
-			status: record.status,
-			tmuxWindowIndex: record.tmuxWindowIndex,
-		};
-		next.set(record.id, currentSnapshot);
-
-		const previousSnapshot = previous?.get(record.id);
-		if (!previousSnapshot || previousSnapshot.status === record.status) continue;
-		transitions.push({
-			id: record.id,
-			fromStatus: previousSnapshot.status,
-			toStatus: record.status,
-			tmuxWindowIndex: record.tmuxWindowIndex ?? previousSnapshot.tmuxWindowIndex,
+function renderInfoMessage(pi: ExtensionAPI, ctx: ExtensionContext, title: string, lines: string[]): void {
+	const content = [title, "", ...lines].join("\n");
+	if (ctx.hasUI) {
+		pi.sendMessage({
+			customType: "side-agents-report",
+			content,
+			display: true,
 		});
-	}
-
-	if (previous) {
-		for (const [agentId, previousSnapshot] of previous.entries()) {
-			if (next.has(agentId)) continue;
-			if (isTerminalStatus(previousSnapshot.status)) continue;
-			transitions.push({
-				id: agentId,
-				fromStatus: previousSnapshot.status,
-				toStatus: "done",
-				tmuxWindowIndex: previousSnapshot.tmuxWindowIndex,
-			});
-		}
-	}
-
-	statusSnapshotsByStateRoot.set(stateRoot, next);
-	if (!previous) return [];
-	return transitions.sort((a, b) => a.id.localeCompare(b.id));
-}
-
-type ThemeForeground = { fg: (role: "warning" | "muted" | "accent" | "error", text: string) => string };
-
-function formatStatusWord(status: AgentStatus, theme?: ThemeForeground): string {
-	if (!theme) return status;
-	return theme.fg(statusColorRole(status), status);
-}
-
-function formatLabelPrefix(prefix: string, theme?: ThemeForeground): string {
-	if (!theme) return prefix;
-	return theme.fg("muted", prefix);
-}
-
-function formatStatusTransitionMessage(transition: StatusTransitionNotice, theme?: ThemeForeground): string {
-	const win = transition.tmuxWindowIndex !== undefined ? ` (tmux #${transition.tmuxWindowIndex})` : "";
-	const from = formatStatusWord(transition.fromStatus, theme);
-	const to = formatStatusWord(transition.toStatus, theme);
-	return `side-agent ${transition.id}: ${from} -> ${to}${win}`;
-}
-
-function emitStatusTransitions(pi: ExtensionAPI, ctx: ExtensionContext, transitions: StatusTransitionNotice[]): void {
-	if (isChildRuntime()) return;
-
-	for (const transition of transitions) {
-		const key = `${transition.id}:${transition.fromStatus}->${transition.toStatus}`;
-		const now = Date.now();
-		let deduped = false;
-		try {
-			const raw = readFileSync(DEDUP_FILE, "utf8");
-			const d = JSON.parse(raw);
-			if (d.key === key && now - d.at < EMIT_DEDUP_WINDOW_MS) deduped = true;
-		} catch { /* file doesn't exist yet */ }
-		if (deduped) continue;
-		try {
-			writeFileSync(DEDUP_FILE, JSON.stringify({ key, at: now }));
-		} catch { /* best effort */ }
-		const message = formatStatusTransitionMessage(transition, ctx.hasUI ? ctx.ui.theme : undefined);
-		pi.sendMessage(
-			{
-				customType: STATUS_UPDATE_MESSAGE_TYPE,
-				content: message,
-				display: true,
-				details: {
-					agentId: transition.id,
-					fromStatus: transition.fromStatus,
-					toStatus: transition.toStatus,
-					tmuxWindowIndex: transition.tmuxWindowIndex,
-					emittedAt: Date.now(),
-				},
-			},
-			{
-				triggerTurn: false,
-				deliverAs: "followUp",
-			},
-		);
-
-		if (ctx.hasUI && (transition.toStatus === "failed" || transition.toStatus === "crashed")) {
-			ctx.ui.notify(message, "error");
-		}
+	} else {
+		console.log(content);
 	}
 }
 
@@ -2004,104 +768,9 @@ function emitKickoffPromptMessage(pi: ExtensionAPI, started: StartAgentResult): 
 	);
 }
 
-function isLatestGeneration(): boolean {
-	try {
-		const raw = readFileSync(POLLER_COORD_FILE, "utf8");
-		return JSON.parse(raw).generation === pollerGeneration;
-	} catch {
-		return true;
-	}
-}
-
-async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionContext, options?: { emitTransitions?: boolean }): Promise<void> {
-	if (!ctx.hasUI) return;
-
-	const stateRoot = getStateRoot(ctx);
-	const refreshed = await refreshAllAgents(stateRoot);
-	const agents = Object.values(refreshed.agents).sort((a, b) => a.id.localeCompare(b.id));
-
-	if (options?.emitTransitions ?? true) {
-		// Only the latest hot-reloaded instance should emit transitions.
-		const isCurrentGen = isLatestGeneration();
-		const transitions = collectStatusTransitions(stateRoot, agents);
-		if (transitions.length > 0 && isCurrentGen) {
-			emitStatusTransitions(pi, ctx, transitions);
-		} else if (transitions.length > 0) {
-			// Stale instance — still consume the snapshot to avoid re-emitting.
-		}
-	} else if (!statusSnapshotsByStateRoot.has(stateRoot)) {
-		collectStatusTransitions(stateRoot, agents);
-	}
-
-	// Inside a child agent, hide our own entry — only show siblings.
-	const selfId = process.env[ENV_AGENT_ID];
-	const visible = selfId ? agents.filter((r) => r.id !== selfId) : agents;
-
-	if (visible.length === 0) {
-		if (lastRenderedStatusLine !== undefined) {
-			ctx.ui.setStatus(STATUS_KEY, undefined);
-			lastRenderedStatusLine = undefined;
-		}
-		return;
-	}
-
-	const theme = ctx.ui.theme;
-	const line = visible
-		.map((record) => {
-			const win = record.tmuxWindowIndex !== undefined ? `@${record.tmuxWindowIndex}` : "";
-			const entry = `${record.id}:${statusShort(record.status)}${win}`;
-			return theme.fg(statusColorRole(record.status), entry);
-		})
-		.join(" ");
-
-	if (line === lastRenderedStatusLine) return;
-	ctx.ui.setStatus(STATUS_KEY, line);
-	lastRenderedStatusLine = line;
-}
-
-function ensureStatusPoller(pi: ExtensionAPI, ctx: ExtensionContext): void {
-	statusPollContext = ctx;
-	statusPollApi = pi;
-	if (!ctx.hasUI) return;
-
-	// Read current generation and bump it — all older poller instances will
-	// see their generation is stale and stop firing.
-	try {
-		const raw = readFileSync(POLLER_COORD_FILE, "utf8");
-		pollerGeneration = (JSON.parse(raw).generation ?? 0) + 1;
-	} catch {
-		pollerGeneration = 1;
-	}
-	try {
-		writeFileSync(POLLER_COORD_FILE, JSON.stringify({
-			generation: pollerGeneration,
-			pid: process.pid,
-			createdAt: Date.now(),
-		}));
-	} catch { /* best effort */ }
-
-	if (!statusPollTimer) {
-		const myGen = pollerGeneration;
-		statusPollTimer = setInterval(() => {
-			// Stop firing if a newer instance has taken over.
-			try {
-				const raw = readFileSync(POLLER_COORD_FILE, "utf8");
-				if (JSON.parse(raw).generation !== myGen) return;
-			} catch { /* file gone — we're the only one */ }
-			if (statusPollInFlight || !statusPollContext || !statusPollApi) return;
-			statusPollInFlight = true;
-			void renderStatusLine(statusPollApi, statusPollContext)
-				.catch(() => {})
-				.finally(() => {
-					statusPollInFlight = false;
-				});
-		}, 2500);
-		statusPollTimer.unref();
-	}
-
-	void renderStatusLine(pi, ctx).catch(() => {});
-}
-
+// ---------------------------------------------------------------------------
+// Extension entry point
+// ---------------------------------------------------------------------------
 
 export default function sideAgentsExtension(pi: ExtensionAPI) {
 	pi.registerCommand("agent", {
@@ -2113,7 +782,6 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			// Resolve -mode (pi-amplike modes) to a model spec if no explicit -model was given.
 			let resolvedModel = parsed.model;
 			if (parsed.mode && !parsed.model) {
 				const modeResult = await resolveModeToModelSpec(ctx.cwd, parsed.mode);
@@ -2158,7 +826,44 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			const stateRoot = getStateRoot(ctx);
 			const repoRoot = resolveGitRoot(stateRoot);
-			let registry = await refreshAllAgents(stateRoot);
+			let registry = await loadRegistry(stateRoot);
+
+			// Refresh all agents inline
+			await mutateRegistry(stateRoot, async (reg) => {
+				for (const [agentId, record] of Object.entries(reg.agents)) {
+					if (record.status === "done") {
+						await cleanupWorktreeLockBestEffort(record.worktreePath, record.id);
+						delete reg.agents[agentId];
+						continue;
+					}
+					if (record.exitFile && (await fileExists(record.exitFile))) {
+						const exit = (await readJsonFile<import("./types.js").ExitMarker>(record.exitFile)) ?? {};
+						if (typeof exit.exitCode === "number") {
+							record.exitCode = exit.exitCode;
+							record.finishedAt = exit.finishedAt ?? record.finishedAt ?? nowIso();
+							record.status = exit.exitCode === 0 ? "done" : "failed";
+							record.updatedAt = nowIso();
+							if (exit.exitCode === 0) {
+								await cleanupWorktreeLockBestEffort(record.worktreePath, record.id);
+								delete reg.agents[agentId];
+								continue;
+							}
+						}
+					}
+					if (record.tmuxWindowId && !tmuxWindowExists(record.tmuxWindowId) && !isTerminalStatus(record.status)) {
+						record.finishedAt = record.finishedAt ?? nowIso();
+						record.status = "crashed";
+						record.updatedAt = nowIso();
+						if (!record.error) record.error = "tmux window disappeared before an exit marker was recorded";
+					} else if (record.tmuxWindowId && tmuxWindowExists(record.tmuxWindowId) &&
+						(record.status === "allocating_worktree" || record.status === "spawning_tmux")) {
+						record.status = "running";
+						record.updatedAt = nowIso();
+					}
+				}
+			});
+			registry = await loadRegistry(stateRoot);
+
 			const records = Object.values(registry.agents).sort((a, b) => a.id.localeCompare(b.id));
 			let orphanLocks = await scanOrphanWorktreeLocks(repoRoot, registry);
 
@@ -2174,13 +879,15 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 				lines.push("(no tracked agents)");
 			} else {
 				const theme = ctx.hasUI ? ctx.ui.theme : undefined;
+				const formatStatusWord = (status: AgentStatus) => theme ? theme.fg(statusColorRole(status), status) : status;
+				const formatLabelPrefix = (prefix: string) => theme ? theme.fg("muted", prefix) : prefix;
 				for (const [index, record] of records.entries()) {
 					const win = record.tmuxWindowIndex !== undefined ? `#${record.tmuxWindowIndex}` : "-";
 					const worktreeName = record.worktreePath ? basename(record.worktreePath) || record.worktreePath : "-";
-					const statusWord = formatStatusWord(record.status, theme);
-					const winPrefix = formatLabelPrefix("win:", theme);
-					const worktreePrefix = formatLabelPrefix("worktree:", theme);
-					const taskPrefix = formatLabelPrefix("task:", theme);
+					const statusWord = formatStatusWord(record.status);
+					const winPrefix = formatLabelPrefix("win:");
+					const worktreePrefix = formatLabelPrefix("worktree:");
+					const taskPrefix = formatLabelPrefix("task:");
 					lines.push(`${record.id}  ${statusWord}  ${winPrefix}${win}  ${worktreePrefix}${worktreeName}`);
 					lines.push(`  ${taskPrefix} ${summarizeTask(record.task)}`);
 					if (record.error) lines.push(`  error: ${record.error}`);
@@ -2212,7 +919,6 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 					`Remove ${failedIds.length} failed/crashed agent(s) from registry: ${failedIds.join(", ")}`,
 				);
 				if (confirmed) {
-					// Collect worktree paths + agent IDs before removing records so we can release their locks.
 					const worktreeEntries: { path: string; agentId: string }[] = [];
 					registry = await mutateRegistry(stateRoot, async (next) => {
 						for (const id of failedIds) {
@@ -2221,7 +927,6 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 							delete next.agents[id];
 						}
 					});
-					// Release worktree locks now that the agents are cleared.
 					for (const entry of worktreeEntries) {
 						await cleanupWorktreeLockBestEffort(entry.path, entry.agentId);
 					}
@@ -2396,8 +1101,8 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (_event, ctx) => {
-		statusPollContext = ctx;
-		statusPollApi = pi;
+		setStatusPollContext(ctx);
+		setStatusPollApi(pi);
 		await renderStatusLine(pi, ctx, { emitTransitions: false }).catch(() => {});
 	});
 }
