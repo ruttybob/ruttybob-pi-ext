@@ -25,10 +25,13 @@ export default function (pi: ExtensionAPI) {
 	// Конфиг читается при загрузке — схема заморожена на всю сессию
 	const config = loadSubagentConfig(process.cwd());
 
+	// Дискавери при загрузке — чтобы перечислить имена агентов в tool description
+	const bootAgents = discoverAgents(process.cwd(), config.agentScope).agents;
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: buildDescription(config),
+		description: buildDescription(config, bootAgents),
 		parameters: buildSchema(config),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
@@ -37,10 +40,10 @@ export default function (pi: ExtensionAPI) {
 			const effectiveMaxTasks = runtimeConfig.maxParallelTasks;
 			const effectiveConcurrency = runtimeConfig.maxConcurrency;
 
-			const agentScope: AgentScope = params.agentScope ?? "user";
+			const agentScope: AgentScope = runtimeConfig.agentScope;
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;
-			const confirmProjectAgents = params.confirmProjectAgents ?? true;
+			const confirmProjectAgents = runtimeConfig.confirmProjectAgents;
 
 			const hasChain = (params.chain?.length ?? 0) > 0;
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
@@ -174,15 +177,22 @@ export default function (pi: ExtensionAPI) {
 						details: makeDetails("parallel")([]),
 					};
 
+				// Resolve agent names: per-task agent or fallback to top-level agent
+				const defaultAgent = params.agent || "worker";
+				const resolvedTasks = params.tasks.map((t) => ({
+					...t,
+					agent: t.agent || defaultAgent,
+				}));
+
 				// Track all results for streaming updates
-				const allResults: SingleResult[] = new Array(params.tasks.length);
+				const allResults: SingleResult[] = new Array(resolvedTasks.length);
 
 				// Initialize placeholder results
-				for (let i = 0; i < params.tasks.length; i++) {
+				for (let i = 0; i < resolvedTasks.length; i++) {
 					allResults[i] = {
-						agent: params.tasks[i].agent,
+						agent: resolvedTasks[i].agent,
 						agentSource: "unknown",
-						task: params.tasks[i].task,
+						task: resolvedTasks[i].task,
 						exitCode: -1, // -1 = still running
 						messages: [],
 						stderr: "",
@@ -203,7 +213,7 @@ export default function (pi: ExtensionAPI) {
 					}
 				};
 
-				const results = await mapWithConcurrencyLimit(params.tasks, effectiveConcurrency, async (t, index) => {
+				const results = await mapWithConcurrencyLimit(resolvedTasks, effectiveConcurrency, async (t, index) => {
 					const result = await runSingleAgent(
 						ctx.cwd,
 						agents,
@@ -228,8 +238,8 @@ export default function (pi: ExtensionAPI) {
 
 				const successCount = results.filter((r) => r.exitCode === 0).length;
 				const summaries = results.map((r) => {
-					const output = getFinalOutput(r.messages);
-					const preview = output.slice(0, 100) + (output.length > 100 ? "..." : "");
+					const output = getFinalOutput(r.messages) || r.stderr;
+					const preview = output.slice(0, 200) + (output.length > 200 ? "..." : "");
 					return `[${r.agent}] ${r.exitCode === 0 ? "completed" : "failed"}: ${preview || "(no output)"}`;
 				});
 				return {

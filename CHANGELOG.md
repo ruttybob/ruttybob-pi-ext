@@ -10,7 +10,7 @@
 
 ### Changed
 
-- **subagent**: `runner.ts` — комментарий о выносе констант в `config.ts`
+- **subagent**: `agentScope` и `confirmProjectAgents` перенесены из tool schema в `SubagentConfig` — LLM больше не видит и не передаёт эти параметры; scope настраивается в `settings.json` (defaults → global → project); boot-time discovery использует `config.agentScope` вместо хардкода `"user"`
 - **prompts/plan-detailed**: убрана устаревшая секция Input
 
 ### Changed

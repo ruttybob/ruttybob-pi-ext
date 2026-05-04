@@ -10,6 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
+import type { AgentScope } from "./agents.js";
 
 // --- Интерфейс конфига ---
 
@@ -20,6 +21,10 @@ export interface SubagentConfig {
 	maxParallelTasks: number;
 	/** Максимальная параллельность (concurrency limiter). Default: 4 */
 	maxConcurrency: number;
+	/** Откуда подгружать агентов. Default: "user" */
+	agentScope: AgentScope;
+	/** Подтверждать запуск project-агентов через UI. Default: true */
+	confirmProjectAgents: boolean;
 }
 
 // --- Дефолты ---
@@ -28,6 +33,8 @@ export const DEFAULT_CONFIG: SubagentConfig = {
 	parallelEnabled: false,
 	maxParallelTasks: 8,
 	maxConcurrency: 4,
+	agentScope: "user",
+	confirmProjectAgents: true,
 };
 
 // --- Загрузка ---
@@ -63,6 +70,7 @@ function extractRaw(settings: Record<string, unknown> | null): Record<string, un
 }
 
 function buildConfig(raw: Record<string, unknown>): SubagentConfig {
+	const validScopes = new Set<string>(["user", "project", "both"]);
 	return {
 		parallelEnabled: raw.parallelEnabled === true,
 		maxParallelTasks:
@@ -73,6 +81,8 @@ function buildConfig(raw: Record<string, unknown>): SubagentConfig {
 			typeof raw.maxConcurrency === "number" && raw.maxConcurrency > 0
 				? Math.min(raw.maxConcurrency, 32)
 				: DEFAULT_CONFIG.maxConcurrency,
+		agentScope: validScopes.has(raw.agentScope as string) ? (raw.agentScope as AgentScope) : DEFAULT_CONFIG.agentScope,
+		confirmProjectAgents: raw.confirmProjectAgents !== false,
 	};
 }
 

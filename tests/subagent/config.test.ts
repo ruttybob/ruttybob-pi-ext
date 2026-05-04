@@ -68,7 +68,7 @@ describe("subagent/config > loadSubagentConfig", () => {
 			}),
 		);
 		const config = loadSubagentConfig();
-		expect(config).toEqual({ parallelEnabled: true, maxParallelTasks: 16, maxConcurrency: 8 });
+		expect(config).toEqual({ parallelEnabled: true, maxParallelTasks: 16, maxConcurrency: 8, agentScope: "user", confirmProjectAgents: true });
 	});
 
 	// --- Project overlay ---

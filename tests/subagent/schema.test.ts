@@ -13,7 +13,6 @@ describe("subagent/schema > buildSchema", () => {
 		expect(schema.properties).toHaveProperty("agent");
 		expect(schema.properties).toHaveProperty("task");
 		expect(schema.properties).toHaveProperty("chain");
-		expect(schema.properties).toHaveProperty("agentScope");
 		expect(schema.properties).toHaveProperty("cwd");
 	});
 
@@ -23,24 +22,23 @@ describe("subagent/schema > buildSchema", () => {
 		expect(schema.properties).toHaveProperty("agent");
 		expect(schema.properties).toHaveProperty("task");
 		expect(schema.properties).toHaveProperty("chain");
-		expect(schema.properties).toHaveProperty("agentScope");
 		expect(schema.properties).toHaveProperty("cwd");
 	});
 });
 
 describe("subagent/schema > buildDescription", () => {
-	it("упоминает parallel (tasks array) когда enabled", () => {
+	it("упоминает parallel когда enabled", () => {
 		const desc = buildDescription({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4 });
-		expect(desc).toContain("parallel (tasks array)");
+		expect(desc).toContain("parallel");
+		expect(desc).toContain("concurrently");
 		expect(desc).toContain("single");
 		expect(desc).toContain("chain");
-		expect(desc).not.toContain("requires");
+		expect(desc).not.toContain("unavailable");
 	});
 
-	it("НЕ упоминает parallel в modes когда disabled, но содержит подсказку", () => {
+	it("НЕ упоминает parallel когда disabled", () => {
 		const desc = buildDescription({ parallelEnabled: false, maxParallelTasks: 8, maxConcurrency: 4 });
-		expect(desc).not.toMatch(/parallel \(tasks array\)/);
-		expect(desc).toContain("parallelEnabled");
+		expect(desc).not.toContain("parallel");
 		expect(desc).toContain("single");
 		expect(desc).toContain("chain");
 	});
@@ -57,15 +55,15 @@ describe("subagent/schema > интеграция с config", () => {
 		expect(schema.properties).toHaveProperty("tasks");
 	});
 
-	it("description без parallel не содержит 'parallel (tasks array)'", () => {
+	it("description без parallel не упоминает его", () => {
 		const desc = buildDescription(DEFAULT_CONFIG);
-		expect(desc).not.toMatch(/parallel \(tasks array\)/);
+		expect(desc).not.toContain("parallel");
 		expect(desc).toContain("single");
 		expect(desc).toContain("chain");
 	});
 
-	it("description с parallel содержит 'parallel (tasks array)'", () => {
+	it("description с parallel содержит 'concurrently'", () => {
 		const desc = buildDescription({ ...DEFAULT_CONFIG, parallelEnabled: true });
-		expect(desc).toContain("parallel (tasks array)");
+		expect(desc).toContain("concurrently");
 	});
 });
