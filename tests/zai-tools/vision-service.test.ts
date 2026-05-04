@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createVisionService, extractVisionText } from '../../extensions/zai-tools/src/services/vision.ts';
+import { createVisionService, extractVisionText } from '../../extensions/zai-tools/src/services/vision.js';
 
 describe('createVisionService', () => {
   const callTool = vi.fn().mockResolvedValue({

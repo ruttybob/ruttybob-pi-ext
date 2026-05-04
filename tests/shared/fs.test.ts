@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { ensureDir, fileExists, tryRead, readJsonFile, atomicWrite } from "../../extensions/shared/fs.ts";
+import { ensureDir, fileExists, tryRead, readJsonFile, atomicWrite } from "../../extensions/shared/fs.js";
 
 async function makeTempDir(): Promise<string> {
 	return mkdtemp(join(tmpdir(), "fs-test-"));

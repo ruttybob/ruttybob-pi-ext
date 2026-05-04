@@ -7,6 +7,7 @@
 import { promises as fs } from "node:fs";
 import { dirname, join } from "node:path";
 import { ensureDir, fileExists, readJsonFile, atomicWrite } from "../shared/fs.js";
+export { ensureDir };
 import { sleep, stringifyError } from "../shared/async.js";
 import { nowIso } from "./utils.js";
 import type { RegistryFile } from "./types.js";

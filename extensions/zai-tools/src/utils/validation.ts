@@ -1,6 +1,6 @@
-import { ENABLED_MODULES } from '../constants.ts';
-import type { EnabledModule } from '../types.ts';
-import { ConfigError, ValidationError } from './errors.ts';
+import { ENABLED_MODULES } from '../constants.js';
+import type { EnabledModule } from '../types.js';
+import { ConfigError, ValidationError } from './errors.js';
 
 const enabledModuleSet = new Set<string>(ENABLED_MODULES);
 

@@ -49,7 +49,7 @@ describe("pi-auto-rename extension", () => {
 
 		it("показывает help", async () => {
 			const ctx = createMockCommandContext();
-			ctx.ui.notify = vi.fn();
+			(ctx.ui.notify as any) = vi.fn();
 			await handler("help", ctx);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(
 				expect.stringContaining("Usage"),
@@ -59,7 +59,7 @@ describe("pi-auto-rename extension", () => {
 
 		it("включает auto-rename (/rename on)", async () => {
 			const ctx = createMockCommandContext();
-			ctx.ui.notify = vi.fn();
+			(ctx.ui.notify as any) = vi.fn();
 			await handler("on", ctx);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(
 				expect.stringContaining("enabled"),
@@ -69,7 +69,7 @@ describe("pi-auto-rename extension", () => {
 
 		it("выключает auto-rename (/rename off)", async () => {
 			const ctx = createMockCommandContext();
-			ctx.ui.notify = vi.fn();
+			(ctx.ui.notify as any) = vi.fn();
 			await handler("off", ctx);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(
 				expect.stringContaining("disabled"),
@@ -79,16 +79,16 @@ describe("pi-auto-rename extension", () => {
 
 		it("показывает статус (/rename show)", async () => {
 			const ctx = createMockCommandContext();
-			ctx.ui.notify = vi.fn();
+			(ctx.ui.notify as any) = vi.fn();
 			await handler("show", ctx);
-			const call = ctx.ui.notify.mock.calls[0];
+			const call = (ctx.ui.notify as any).mock.calls[0];
 			expect(call[0]).toContain("anthropic/claude-haiku-4-5");
 			expect(call[0]).toContain("on");
 		});
 
 		it("показывает неизвестную подкоманду", async () => {
 			const ctx = createMockCommandContext();
-			ctx.ui.notify = vi.fn();
+			(ctx.ui.notify as any) = vi.fn();
 			await handler("unknown", ctx);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(
 				expect.stringContaining("Usage"),

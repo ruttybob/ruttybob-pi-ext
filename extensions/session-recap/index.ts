@@ -36,7 +36,7 @@
  */
 
 import { completeSimple, getModel } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 
 type ContentBlock = {
 	type?: string;
@@ -173,7 +173,7 @@ function hasMeaningfulActivity(entries: Entry[]): boolean {
 
 async function generateRecap(
 	transcript: string,
-	ctx: ExtensionContext,
+	ctx: ExtensionCommandContext,
 	overrideSpec: string | undefined,
 	signal: AbortSignal | undefined,
 ): Promise<string | undefined> {
@@ -191,7 +191,7 @@ async function generateRecap(
 	}
 	if (!model) return undefined;
 
-	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+	const auth = await ctx.modelRegistry!.getApiKeyAndHeaders(model);
 	if (!auth?.ok || !auth.apiKey) return undefined;
 
 	const prompt =
@@ -242,14 +242,14 @@ async function generateRecap(
 	return text ? text.split(/\r?\n/, 1)[0].trim() : undefined;
 }
 
-function showRecap(ctx: ExtensionContext, recap: string) {
+function showRecap(ctx: ExtensionCommandContext, recap: string) {
 	if (!ctx.hasUI) return;
 	const theme = ctx.ui.theme;
 	const header = theme.fg("accent", theme.bold("✦ recap"));
 	ctx.ui.setWidget(WIDGET_KEY, [header, theme.fg("dim", recap)], { placement: "aboveEditor" });
 }
 
-function clearRecap(ctx: ExtensionContext) {
+function clearRecap(ctx: ExtensionCommandContext) {
 	if (!ctx.hasUI) return;
 	ctx.ui.setWidget(WIDGET_KEY, undefined);
 	ctx.ui.setStatus(STATUS_KEY, undefined);
@@ -333,7 +333,7 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 
-	const scheduleRecap = (ctx: ExtensionContext) => {
+	const scheduleRecap = (ctx: ExtensionCommandContext) => {
 		clearTimer();
 		if (isDisabled() || !ctx.hasUI) return;
 		idleTimer = setTimeout(() => {
@@ -342,7 +342,7 @@ export default function (pi: ExtensionAPI) {
 		}, idleMs());
 	};
 
-	const getLeafId = (ctx: ExtensionContext): string | undefined => {
+	const getLeafId = (ctx: ExtensionCommandContext): string | undefined => {
 		try {
 			return ctx.sessionManager.getLeafId();
 		} catch {
@@ -350,7 +350,7 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 
-	const generateAndShow = async (ctx: ExtensionContext, opts: { reason: RecapReason }) => {
+	const generateAndShow = async (ctx: ExtensionCommandContext, opts: { reason: RecapReason }) => {
 		const entries = ctx.sessionManager.getBranch() as Entry[];
 		if (!hasMeaningfulActivity(entries) && opts.reason !== "manual") return;
 
@@ -406,7 +406,7 @@ export default function (pi: ExtensionAPI) {
 
 	// --- focus reporting wiring -------------------------------------------
 
-	const handleFocusOut = (ctx: ExtensionContext) => {
+	const handleFocusOut = (ctx: ExtensionCommandContext) => {
 		focusedOutAt = Date.now();
 		if (isDisabled() || activeController) return;
 
@@ -422,7 +422,7 @@ export default function (pi: ExtensionAPI) {
 		void generateAndShow(ctx, { reason: "focus" });
 	};
 
-	const handleFocusIn = (ctx: ExtensionContext) => {
+	const handleFocusIn = (ctx: ExtensionCommandContext) => {
 		const outAt = focusedOutAt;
 		focusedOutAt = undefined;
 		if (outAt === undefined) return; // spurious focus-in before we saw focus-out
@@ -445,7 +445,7 @@ export default function (pi: ExtensionAPI) {
 		// Still drafting? generateAndShow's success-path will reveal it when done.
 	};
 
-	const attachFocusReporting = (ctx: ExtensionContext) => {
+	const attachFocusReporting = (ctx: ExtensionCommandContext) => {
 		if (focusEnabled || isFocusDisabled() || !ctx.hasUI) return;
 		if (!process.stdout.isTTY || !process.stdin.isTTY) return;
 
@@ -563,7 +563,7 @@ export default function (pi: ExtensionAPI) {
 	// Manual command.
 	pi.registerCommand("recap", {
 		description: "Generate a one-line recap of recent session activity",
-		handler: async (_args, ctx) => {
+		handler: async (_args: string, ctx: ExtensionCommandContext) => {
 			await generateAndShow(ctx, { reason: "manual" });
 		},
 	});

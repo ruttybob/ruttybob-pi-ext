@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWebSearchTool } from '../../extensions/zai-tools/src/tools/web-search-tool.ts';
-import { createWebReaderTool } from '../../extensions/zai-tools/src/tools/web-reader-tool.ts';
-import { createZreadSearchDocTool } from '../../extensions/zai-tools/src/tools/zread-search-doc-tool.ts';
-import { createZreadGetRepoStructureTool } from '../../extensions/zai-tools/src/tools/zread-get-repo-structure-tool.ts';
-import { createZreadReadFileTool } from '../../extensions/zai-tools/src/tools/zread-read-file-tool.ts';
-import { createVisionAnalyzeImageTool } from '../../extensions/zai-tools/src/tools/vision-analyze-image-tool.ts';
-import { createVisionAnalyzeVideoTool } from '../../extensions/zai-tools/src/tools/vision-analyze-video-tool.ts';
-import { createVisionUiToArtifactTool } from '../../extensions/zai-tools/src/tools/vision-ui-to-artifact-tool.ts';
-import { createVisionExtractTextTool } from '../../extensions/zai-tools/src/tools/vision-extract-text-tool.ts';
-import { createVisionDiagnoseErrorTool } from '../../extensions/zai-tools/src/tools/vision-diagnose-error-tool.ts';
-import { createVisionUnderstandDiagramTool } from '../../extensions/zai-tools/src/tools/vision-understand-diagram-tool.ts';
-import { createVisionAnalyzeDataVizTool } from '../../extensions/zai-tools/src/tools/vision-analyze-data-viz-tool.ts';
-import { createVisionUiDiffCheckTool } from '../../extensions/zai-tools/src/tools/vision-ui-diff-check-tool.ts';
+import { createWebSearchTool } from '../../extensions/zai-tools/src/tools/web-search-tool.js';
+import { createWebReaderTool } from '../../extensions/zai-tools/src/tools/web-reader-tool.js';
+import { createZreadSearchDocTool } from '../../extensions/zai-tools/src/tools/zread-search-doc-tool.js';
+import { createZreadGetRepoStructureTool } from '../../extensions/zai-tools/src/tools/zread-get-repo-structure-tool.js';
+import { createZreadReadFileTool } from '../../extensions/zai-tools/src/tools/zread-read-file-tool.js';
+import { createVisionAnalyzeImageTool } from '../../extensions/zai-tools/src/tools/vision-analyze-image-tool.js';
+import { createVisionAnalyzeVideoTool } from '../../extensions/zai-tools/src/tools/vision-analyze-video-tool.js';
+import { createVisionUiToArtifactTool } from '../../extensions/zai-tools/src/tools/vision-ui-to-artifact-tool.js';
+import { createVisionExtractTextTool } from '../../extensions/zai-tools/src/tools/vision-extract-text-tool.js';
+import { createVisionDiagnoseErrorTool } from '../../extensions/zai-tools/src/tools/vision-diagnose-error-tool.js';
+import { createVisionUnderstandDiagramTool } from '../../extensions/zai-tools/src/tools/vision-understand-diagram-tool.js';
+import { createVisionAnalyzeDataVizTool } from '../../extensions/zai-tools/src/tools/vision-analyze-data-viz-tool.js';
+import { createVisionUiDiffCheckTool } from '../../extensions/zai-tools/src/tools/vision-ui-diff-check-tool.js';
 
 describe('tool onUpdate progress messages', () => {
   it('web search tool calls onUpdate with progress info', async () => {
@@ -71,7 +71,7 @@ describe('tool onUpdate progress messages', () => {
   it('zread get repo structure tool calls onUpdate with progress info', async () => {
     const service = {
       getRepoStructure: vi.fn().mockResolvedValue({
-        payload: { structure: 'src/\n  index.ts' },
+        payload: { structure: 'src/\n  index.js' },
         raw: {},
       }),
     };
@@ -88,18 +88,18 @@ describe('tool onUpdate progress messages', () => {
   it('zread read file tool calls onUpdate with progress info', async () => {
     const service = {
       readFile: vi.fn().mockResolvedValue({
-        payload: { content: 'export default {}', path: 'src/index.ts' },
+        payload: { content: 'export default {}', path: 'src/index.js' },
         raw: {},
       }),
     };
     const tool = createZreadReadFileTool(service);
     const onUpdate = vi.fn();
 
-    await tool.execute('call-1', { repo: 'owner/repo', path: 'src/index.ts' }, undefined, onUpdate);
+    await tool.execute('call-1', { repo: 'owner/repo', path: 'src/index.js' }, undefined, onUpdate);
 
     expect(onUpdate).toHaveBeenCalledTimes(2);
     expect(onUpdate.mock.calls[0][0].content[0].text).toContain('reading');
-    expect(onUpdate.mock.calls[0][0].content[0].text).toContain('src/index.ts');
+    expect(onUpdate.mock.calls[0][0].content[0].text).toContain('src/index.js');
     expect(onUpdate.mock.calls[1][0].content[0].text).toContain('file loaded');
   });
 

@@ -12,7 +12,8 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 import { type SubagentConfig, loadSubagentConfig } from "./config.js";
 import { buildSchema, buildDescription } from "./schema.js";
@@ -22,6 +23,88 @@ import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js
 import { getFinalOutput } from "./utils.js";
 
 export default function (pi: ExtensionAPI) {
+	// --- Команда: /subagents:list ---
+
+	pi.registerCommand("subagents:list", {
+		description: "List available subagents",
+
+		async handler(_args: string, ctx: ExtensionCommandContext) {
+			if (!ctx.hasUI) return;
+
+			const runtimeConfig = loadSubagentConfig(ctx.cwd);
+			const discovery = discoverAgents(ctx.cwd, runtimeConfig.agentScope);
+
+			if (discovery.agents.length === 0) {
+				ctx.ui.notify("No subagents available.", "info");
+				return;
+			}
+
+			const lines = discovery.agents.map(
+				(a) => `${a.name} (${a.source}): ${a.description}`,
+			);
+			ctx.ui.notify(lines.join("\n"), "info");
+		},
+	});
+
+	// --- Команда: /subagents:spawn ---
+
+	pi.registerCommand("subagents:spawn", {
+		description: "Spawn a subagent: /subagents:spawn <agent> <task>",
+
+		getArgumentCompletions(argumentPrefix: string): AutocompleteItem[] {
+			const runtimeConfig = loadSubagentConfig(process.cwd());
+			const discovery = discoverAgents(process.cwd(), runtimeConfig.agentScope);
+
+			const all = discovery.agents.map((a) => ({
+				value: a.name,
+				label: a.name,
+				description: a.description,
+			}));
+
+			if (!argumentPrefix) return all;
+
+			const lower = argumentPrefix.toLowerCase();
+			return all.filter((item) => item.value.toLowerCase().startsWith(lower));
+		},
+
+		async handler(args: string, ctx: ExtensionCommandContext) {
+			if (!ctx.hasUI) return;
+
+			const trimmed = (args ?? "").trim();
+			if (!trimmed) {
+				ctx.ui.notify("Usage: /subagents:spawn <agent> <task>", "warning");
+				return;
+			}
+
+			const firstSpace = trimmed.indexOf(" ");
+			const agentName = firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace);
+			const task = firstSpace === -1 ? "" : trimmed.slice(firstSpace + 1).trim();
+
+			if (!task) {
+				ctx.ui.notify("Usage: /subagents:spawn <agent> <task>", "warning");
+				return;
+			}
+
+			// Валидация: агент существует?
+			const runtimeConfig = loadSubagentConfig(ctx.cwd);
+			const discovery = discoverAgents(ctx.cwd, runtimeConfig.agentScope);
+			const agent = discovery.agents.find((a) => a.name === agentName);
+
+			if (!agent) {
+				const available = discovery.agents.map((a) => a.name).join(", ") || "none";
+				ctx.ui.notify(
+					`Unknown agent "${agentName}". Available: ${available}`,
+					"error",
+				);
+				return;
+			}
+
+			pi.sendUserMessage(
+				`Use the subagent tool with agent "${agentName}" and task: ${task}`,
+			);
+		},
+	});
+
 	// Конфиг читается при загрузке — схема заморожена на всю сессию
 	const config = loadSubagentConfig(process.cwd());
 
@@ -34,7 +117,7 @@ export default function (pi: ExtensionAPI) {
 		description: buildDescription(config, bootAgents),
 		parameters: buildSchema(config),
 
-		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+		async execute(_toolCallId: string, params: Record<string, any>, signal: AbortSignal, onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
 			// Конфиг перечитывается при каждом вызове — hot-reload лимитов
 			const runtimeConfig = loadSubagentConfig(ctx.cwd);
 			const effectiveMaxTasks = runtimeConfig.maxParallelTasks;
@@ -179,7 +262,7 @@ export default function (pi: ExtensionAPI) {
 
 				// Resolve agent names: per-task agent or fallback to top-level agent
 				const defaultAgent = params.agent || "worker";
-				const resolvedTasks = params.tasks.map((t) => ({
+				const resolvedTasks = (params.tasks as { agent?: string; task: string; cwd?: string }[]).map((t) => ({
 					...t,
 					agent: t.agent || defaultAgent,
 				}));

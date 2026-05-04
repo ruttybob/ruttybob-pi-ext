@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createToggleManager } from '../../extensions/zai-tools/src/toggle.ts';
+import { createToggleManager } from '../../extensions/zai-tools/src/toggle.js';
 
 describe('createToggleManager', () => {
   const zaiToolNames = ['zai_web_search', 'zai_web_reader', 'zai_zread_search_doc'];

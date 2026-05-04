@@ -8,7 +8,7 @@
  * и динамические ресурсные секции [Skills], [Prompts], [Extensions].
  */
 
-import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, Theme, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { VERSION } from "@mariozechner/pi-coding-agent";
 import { type TUI, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import * as fs from "node:fs";
@@ -258,7 +258,7 @@ export default function (pi: ExtensionAPI) {
 	const header = new SoftRedHeaderComponent();
 
 	// При старте / reload сессии — установить soft-red header + FS scan
-	pi.on("session_start", async (_event, ctx) => {
+	pi.on("session_start", async (_event: any, ctx: ExtensionCommandContext) => {
 		if (!ctx.hasUI) return;
 
 		// Предварительное сканирование FS для раннего отображения ресурсов
@@ -278,9 +278,9 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// При первом запросе пользователя — обновить ресурсы точными данными из API
-	pi.on("before_agent_start", async (event, _ctx) => {
+	pi.on("before_agent_start", async (event: any, _ctx: ExtensionCommandContext) => {
 		const skills =
-			event.systemPromptOptions.skills?.map((s) => s.name) ?? [];
+			event.systemPromptOptions.skills?.map((s: any) => s.name) ?? [];
 		const commands = pi.getCommands();
 
 		const prompts = commands

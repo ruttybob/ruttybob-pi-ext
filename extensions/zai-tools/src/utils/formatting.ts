@@ -1,5 +1,5 @@
-import type { FormattedToolResult } from '../types.ts';
-import { truncateText } from './truncation.ts';
+import type { FormattedToolResult } from '../types.js';
+import { truncateText } from './truncation.js';
 
 export function formatSearchResults(items: Array<Record<string, unknown>>): FormattedToolResult {
   if (items.length === 0) {

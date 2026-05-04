@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sleep, stringifyError } from "../../extensions/shared/async.ts";
+import { sleep, stringifyError } from "../../extensions/shared/async.js";
 
 describe("shared/async", () => {
 	describe("stringifyError", () => {

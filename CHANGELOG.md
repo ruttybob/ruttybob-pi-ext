@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Removed
+
+- **evolver**: расширение полностью удалено — extensions/evolver/, tests/evolver/, memory/evolution/
+
+### Added
+
+- **subagent**: промпт-шаблон `parallel-implement` для параллельной имплементации через worker-ов
+- **subagent**: команды `/subagents:list` и `/subagents:spawn` — 15 тестов
+- **subagent**: имена доступных агентов в tool description для предотвращения галлюцинаций LLM
+- **subagent**: тест на Optional agent в TaskItem-схеме
+- `@types/node` добавлен в devDependencies
+
+### Changed
+
+- **subagent**: parallel summary показывает `stderr` при пустом `messages` (раньше показывал `(no output)` для несуществующих агентов)
+- **subagent**: `buildDescription()` принимает список агентов для перечисления в tool description
+- **subagent**: `config.ts` — убран двойной type cast `agentScope`
+- **zai-tools**: импорты переведены с `.ts` на `.js` суффиксы (107 TS-ошибок)
+- **все расширения**: типизированы параметры `execute`, `renderCall`, `renderResult` (~120 TS-ошибок)
+- **stubs**: обновлены `pi-coding-agent` (ExtensionAPI, ExtensionCommandContext.ui, AgentToolResult<T>, Message), `pi-tui` (requestRender, backspace, Component.render), `pi-ai` (StringEnum, Message)
+- `tsconfig.test.json`: добавлено `"types": ["node"]`
+
+### Fixed
+
+- **subagent**: parallel mode не показывал диагностику при вызове несуществующего агента
+
 ### Added
 
 - **subagent**: динамическая сборка JSON-схемы tool — при `parallelEnabled: false` поле `tasks` отсутствует в схеме; конфигурация через `settings.json` (defaults → global → project)

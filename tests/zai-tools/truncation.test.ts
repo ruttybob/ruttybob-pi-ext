@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { truncateText } from '../../extensions/zai-tools/src/utils/truncation.ts';
+import { truncateText } from '../../extensions/zai-tools/src/utils/truncation.js';
 
 describe('truncateText', () => {
   it('returns the original text when it fits the limits', () => {

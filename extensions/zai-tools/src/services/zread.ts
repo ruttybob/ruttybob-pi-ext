@@ -1,7 +1,7 @@
-import { MCP_TOOL_NAMES } from '../constants.ts';
-import type { McpCaller } from '../types.ts';
-import { extractItemsFromResult, extractPayloadFromResult } from '../utils/json-parse.ts';
-import { validatePath, validateRepo } from '../utils/validation.ts';
+import { MCP_TOOL_NAMES } from '../constants.js';
+import type { McpCaller } from '../types.js';
+import { extractItemsFromResult, extractPayloadFromResult } from '../utils/json-parse.js';
+import { validatePath, validateRepo } from '../utils/validation.js';
 
 const SEARCH_DOC_ARG_SHAPES = [
   (repo: string, query: string) => ({ repo_name: repo, query }),

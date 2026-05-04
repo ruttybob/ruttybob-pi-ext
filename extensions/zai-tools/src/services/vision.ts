@@ -1,6 +1,6 @@
-import { MCP_TOOL_NAMES } from '../constants.ts';
-import type { McpCaller, McpToolResult } from '../types.ts';
-import { assertNonEmptyString } from '../utils/validation.ts';
+import { MCP_TOOL_NAMES } from '../constants.js';
+import type { McpCaller, McpToolResult } from '../types.js';
+import { assertNonEmptyString } from '../utils/validation.js';
 
 export function createVisionService(client: McpCaller) {
   return {

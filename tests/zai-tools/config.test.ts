@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadConfig } from '../../extensions/zai-tools/src/config.ts';
+import { loadConfig } from '../../extensions/zai-tools/src/config.js';
 
 describe('loadConfig', () => {
   it('enables all modules by default', () => {

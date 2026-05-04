@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import { join, basename, normalize } from "node:path";
 import { execSync } from "node:child_process";
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type {
   AgentRegistration,
   MeshState,
@@ -170,7 +170,7 @@ export function getRegistrationPath(state: MeshState, dirs: Dirs): string {
 export function register(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext,
+  ctx: ExtensionCommandContext,
   configName?: string
 ): boolean {
   if (state.registered) return true;
@@ -352,7 +352,7 @@ export function getAllAgents(state: MeshState, dirs: Dirs): AgentRegistration[] 
 export function updateRegistration(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext
+  ctx: ExtensionCommandContext
 ): void {
   if (!state.registered) return;
 
@@ -379,7 +379,7 @@ export function updateRegistration(
 export function flushActivityToRegistry(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext
+  ctx: ExtensionCommandContext
 ): void {
   if (!state.registered) return;
 
@@ -415,7 +415,7 @@ export interface RenameResult {
 export function renameAgent(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext,
+  ctx: ExtensionCommandContext,
   newName: string
 ): RenameResult {
   if (!state.registered) return { success: false, error: "not_registered" };

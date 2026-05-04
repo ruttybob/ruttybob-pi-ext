@@ -4,7 +4,7 @@ import {
 	stripTerminalNoise,
 	splitLines,
 	tailLines,
-} from "../../extensions/shared/text.ts";
+} from "../../extensions/shared/text.js";
 
 describe("shared/text", () => {
 	describe("truncateWithEllipsis", () => {

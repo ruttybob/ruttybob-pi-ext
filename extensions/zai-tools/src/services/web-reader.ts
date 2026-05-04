@@ -1,7 +1,7 @@
-import { MCP_TOOL_NAMES } from '../constants.ts';
-import type { McpCaller } from '../types.ts';
-import { extractPayloadFromResult } from '../utils/json-parse.ts';
-import { validateUrl } from '../utils/validation.ts';
+import { MCP_TOOL_NAMES } from '../constants.js';
+import type { McpCaller } from '../types.js';
+import { extractPayloadFromResult } from '../utils/json-parse.js';
+import { validateUrl } from '../utils/validation.js';
 
 const ARG_SHAPES = [
   (url: string) => ({ url }),

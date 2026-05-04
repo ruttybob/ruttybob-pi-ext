@@ -4,6 +4,15 @@
 
 import { Type } from "@sinclair/typebox";
 
+export interface Message {
+	role: string;
+	content: string | { type: string; text: string }[];
+	[key: string]: unknown;
+}
+
+// ВНИМАНИЕ: Message дублирован в stubs/@mariozechner/pi-coding-agent.ts.
+// При изменении структуры — обновить оба файла одновременно.
+
 /** Конструктор JSON Schema enum из строковых литералов. */
 export function StringEnum<T extends string[]>(values: [...T]) {
 	return Type.Union(values.map((v) => Type.Literal(v)));
@@ -21,6 +30,7 @@ export interface Api {}
 export interface Model<T extends Api = Api> {
 	provider: string;
 	id: string;
+	reasoning?: string;
 }
 
 export interface CompletionResponse {
@@ -57,6 +67,7 @@ export interface CompletionRequestOptions {
 	headers?: Record<string, string>;
 	maxTokens?: number;
 	reasoning?: string;
+	signal?: AbortSignal;
 }
 
 /**

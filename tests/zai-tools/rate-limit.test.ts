@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRateTracker } from '../../extensions/zai-tools/src/utils/rate-limit.ts';
+import { createRateTracker } from '../../extensions/zai-tools/src/utils/rate-limit.js';
 
 describe('createRateTracker', () => {
   it('tracks remaining calls', () => {

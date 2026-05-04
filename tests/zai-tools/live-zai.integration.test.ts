@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { loadConfig } from '../../extensions/zai-tools/src/config.ts';
-import { createRemoteMcpClient } from '../../extensions/zai-tools/src/client/remote-mcp.ts';
-import { MCP_SERVER_PATHS } from '../../extensions/zai-tools/src/constants.ts';
-import { createWebSearchService } from '../../extensions/zai-tools/src/services/web-search.ts';
-import { createWebReaderService } from '../../extensions/zai-tools/src/services/web-reader.ts';
-import { createZreadService } from '../../extensions/zai-tools/src/services/zread.ts';
+import { loadConfig } from '../../extensions/zai-tools/src/config.js';
+import { createRemoteMcpClient } from '../../extensions/zai-tools/src/client/remote-mcp.js';
+import { MCP_SERVER_PATHS } from '../../extensions/zai-tools/src/constants.js';
+import { createWebSearchService } from '../../extensions/zai-tools/src/services/web-search.js';
+import { createWebReaderService } from '../../extensions/zai-tools/src/services/web-reader.js';
+import { createZreadService } from '../../extensions/zai-tools/src/services/zread.js';
 
 const hasApiKey = Boolean(process.env.ZAI_API_KEY);
 

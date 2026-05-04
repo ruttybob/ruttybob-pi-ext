@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTtlCache } from '../../extensions/zai-tools/src/utils/cache.ts';
+import { createTtlCache } from '../../extensions/zai-tools/src/utils/cache.js';
 
 describe('createTtlCache', () => {
   it('returns undefined for missing key', () => {

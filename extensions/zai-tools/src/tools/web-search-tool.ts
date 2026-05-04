@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { formatSearchResults } from '../utils/formatting.ts';
+import { formatSearchResults } from '../utils/formatting.js';
 
 export function createWebSearchTool(service: { search: (query: string, count?: number, freshness?: 'day' | 'week' | 'month' | 'year') => Promise<{ items: Array<Record<string, unknown>>; raw: unknown }> }) {
   return {

@@ -7,7 +7,6 @@ import {
 	DynamicBorder,
 	type ExtensionAPI,
 	type ExtensionCommandContext,
-	type ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
 import {
 	type AutocompleteItem,
@@ -76,7 +75,7 @@ function parseRef(input: string): ModelRef | null {
 async function readConfigFile(): Promise<Config | null> {
 	const raw = await readJsonFile<Record<string, unknown>>(CONFIG_PATH);
 	if (!raw) return null;
-	const model = raw?.model;
+	const model = raw?.model as Record<string, unknown> | undefined;
 	const autoRename = raw?.autoRename;
 	if (typeof model?.provider === "string" && typeof model?.id === "string") {
 		return {
@@ -97,7 +96,7 @@ async function writeConfigFile(config: Config): Promise<boolean> {
 	}
 }
 
-function readSessionConfig(ctx: ExtensionContext): Config | null {
+function readSessionConfig(ctx: ExtensionCommandContext): Config | null {
 	for (const entry of [...ctx.sessionManager.getEntries()].reverse()) {
 		if (entry.type !== "custom") continue;
 		const custom = entry as CustomEntry<Config>;
@@ -114,7 +113,7 @@ function readSessionConfig(ctx: ExtensionContext): Config | null {
 	return null;
 }
 
-async function loadConfig(ctx: ExtensionContext): Promise<Config | null> {
+async function loadConfig(ctx: ExtensionCommandContext): Promise<Config | null> {
 	const file = await readConfigFile();
 	if (file) return file;
 	const session = readSessionConfig(ctx);
@@ -125,15 +124,15 @@ async function loadConfig(ctx: ExtensionContext): Promise<Config | null> {
 // ─── Auth resolution ──────────────────────────────────────────────────────────
 
 async function resolveAuth(
-	ctx: ExtensionContext,
+	ctx: ExtensionCommandContext,
 	ref: ModelRef,
 ): Promise<{ model: Model<Api>; apiKey?: string; headers?: Record<string, string> } | null> {
-	const model = ctx.modelRegistry.find(ref.provider, ref.id);
+	const model = ctx.modelRegistry!.find(ref.provider, ref.id);
 	if (!model) {
 		notify(ctx, `Model not found: ${formatRef(ref)}`, "warning");
 		return null;
 	}
-	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+	const auth = await ctx.modelRegistry!.getApiKeyAndHeaders(model);
 	if (!auth.ok) {
 		notify(
 			ctx,
@@ -152,7 +151,7 @@ async function openModelPicker(
 	current: ModelRef,
 	pi: ExtensionAPI,
 ): Promise<ModelRef | null> {
-	const available = ctx.modelRegistry
+	const available = ctx.modelRegistry!
 		.getAvailable()
 		.map((m): ModelRef => ({ provider: m.provider, id: m.id }))
 		.sort((a, b) => formatRef(a).localeCompare(formatRef(b)));
@@ -198,11 +197,11 @@ async function openModelPicker(
 		const rebuild = () => {
 			const items = toItems(search.getValue().trim());
 			const next = new SelectList(items, 10, {
-				selectedPrefix: (t) => theme.fg("accent", t),
-				selectedText: (t) => theme.fg("accent", t),
-				description: (t) => theme.fg("muted", t),
-				scrollInfo: (t) => theme.fg("dim", t),
-				noMatch: (t) => theme.fg("warning", t),
+				selectedPrefix: (t: string) => theme.fg("accent", t),
+				selectedText: (t: string) => theme.fg("accent", t),
+				description: (t: string) => theme.fg("muted", t),
+				scrollInfo: (t: string) => theme.fg("dim", t),
+				noMatch: (t: string) => theme.fg("warning", t),
 			});
 			next.onSelect = (item) => done(parseRef(item.value));
 			next.onCancel = () => done(null);
@@ -250,12 +249,12 @@ async function openModelPicker(
 
 // ─── Session naming ───────────────────────────────────────────────────────────
 
-function notify(ctx: ExtensionContext, msg: string, level: "info" | "warning" | "error"): void {
+function notify(ctx: ExtensionCommandContext, msg: string, level: "info" | "warning" | "error"): void {
 	if (ctx.hasUI) ctx.ui.notify(msg, level);
 }
 
 async function generateName(
-	ctx: ExtensionContext,
+	ctx: ExtensionCommandContext,
 	ref: ModelRef,
 	systemPrompt: string,
 	instruction: string,
@@ -339,7 +338,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		return await writeConfigFile(config);
 	}
 
-	async function loadPromptOverrides(ctx: ExtensionContext): Promise<{
+	async function loadPromptOverrides(ctx: ExtensionCommandContext): Promise<{
 		systemPrompt: string;
 		instructionAuto: string;
 		instructionManual: string;
@@ -378,14 +377,14 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		return { systemPrompt, instructionAuto, instructionManual, systemSource, instructionSource };
 	}
 
-	async function restoreConfig(ctx: ExtensionContext): Promise<void> {
+	async function restoreConfig(ctx: ExtensionCommandContext): Promise<void> {
 		config = await loadConfig(ctx) ?? defaultConfig();
 	}
 
-	function refreshModelCache(ctx: ExtensionContext): void {
-		cachedModels = ctx.modelRegistry
+	function refreshModelCache(ctx: ExtensionCommandContext): void {
+		cachedModels = ctx.modelRegistry!
 			.getAvailable()
-			.map((m): ModelRef => ({ provider: m.provider, id: m.id }));
+			.map((m: { provider: string; id: string }): ModelRef => ({ provider: m.provider, id: m.id }));
 	}
 
 	function resetNaming(): void {
@@ -401,7 +400,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		return false;
 	}
 
-	async function autoName(ctx: ExtensionContext): Promise<void> {
+	async function autoName(ctx: ExtensionCommandContext): Promise<void> {
 		if (!config.autoRename) return;
 		if (namingAttempted || namingInProgress) return;
 		if (!shouldRename()) return;
@@ -431,7 +430,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 		}
 	}
 
-	async function onSessionEvent(_event: unknown, ctx: ExtensionContext): Promise<void> {
+	async function onSessionEvent(_event: unknown, ctx: ExtensionCommandContext): Promise<void> {
 		resetNaming();
 		await restoreConfig(ctx);
 		refreshModelCache(ctx);
@@ -467,7 +466,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 			return null;
 		},
 
-		handler: async (args, ctx) => {
+		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const trimmed = args.trim();
 
 			// No args: rename from full conversation history
@@ -540,7 +539,7 @@ export default function piAutoRename(pi: ExtensionAPI) {
 				// /rename prompt → show current prompt info
 				if (!promptArg) {
 					const { systemPrompt, instructionAuto, systemSource, instructionSource } =
-						loadPromptOverrides(ctx);
+						await loadPromptOverrides(ctx);
 					const sysPreview =
 						systemPrompt.length > 120
 							? `${systemPrompt.slice(0, 120)}…`

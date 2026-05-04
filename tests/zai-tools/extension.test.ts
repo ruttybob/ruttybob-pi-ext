@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import extension from '../../extensions/zai-tools/index.ts';
+import extension from '../../extensions/zai-tools/index.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

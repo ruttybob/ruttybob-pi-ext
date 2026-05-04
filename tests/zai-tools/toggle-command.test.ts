@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createMockExtensionAPI } from '../test-helpers/mock-api.ts';
-import { createMockCommandContext } from '../test-helpers/mock-context.ts';
-import extension from '../../extensions/zai-tools/index.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createMockExtensionAPI } from '../test-helpers/mock-api.js';
+import { createMockCommandContext } from '../test-helpers/mock-context.js';
+import extension from '../../extensions/zai-tools/index.js';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { rmSync } from 'node:fs';

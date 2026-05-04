@@ -26,6 +26,11 @@ export interface ExtensionAPI {
 		options?: Record<string, unknown>,
 	): Promise<{ code: number; stdout: string; stderr: string }>;
 	sendUserMessage(message: string, options?: Record<string, unknown>): void;
+	sendMessage(message: string | Record<string, unknown>, options?: Record<string, unknown>): void;
+	registerMessageRenderer<T = unknown>(customType: string, renderer: (message: Message & { details?: T }, options: MessageRenderOptions, theme: Theme) => string[] | { render(width: number): string[]; invalidate(): void } | undefined): void;
+	getModelName(): string;
+	setSessionName(name: string): void;
+	getThinkingLevel(): any;
 	events?: { on(event: string, handler: (...args: any[]) => void): void; emit(event: string, data: unknown): void };
 	[key: string]: unknown;
 }
@@ -36,17 +41,25 @@ export interface ExtensionCommandContext {
 		notify(message: string, level?: string): void;
 		select(prompt: string, options: string[]): Promise<string | undefined>;
 		input(prompt: string, defaultValue?: string): Promise<string | undefined>;
-		custom<T>(factory: (...args: any[]) => any): Promise<T>;
+		confirm(title: string, message?: string): Promise<boolean>;
+		custom<T>(factory: (...args: any[]) => any, options?: Record<string, unknown>): Promise<T>;
 		setWidget(
 			key: string,
 			lines: string[] | undefined,
 			options?: Record<string, unknown>,
 		): void;
+		setStatus(text: string, extra?: unknown): void;
+		setHeader(factory: (tui: any, theme: any) => { render(width: number): string[]; invalidate(): void }): void;
 		theme: { fg(color: string, text: string): string; bold(text: string): string };
 	};
 	sessionManager: {
 		getBranch(): any[];
 		getEntries(): any[];
+		getSessionFile(): string | undefined;
+		getSessionId(): string;
+		getLeafId(): string | undefined;
+		getHeader(): any;
+		addCustomEntry?(key: string, data: any): void;
 	};
 	hasUI: boolean;
 	modelRegistry?: {
@@ -55,6 +68,10 @@ export interface ExtensionCommandContext {
 		getAvailable(): { provider: string; id: string }[];
 		getApiKeyAndHeaders(model: any): Promise<{ ok: boolean; apiKey?: string; headers?: Record<string, string>; error?: string }>;
 	};
+	model?: { provider: string; id: string; reasoning?: string } & Record<string, unknown>;
+	getSystemPrompt?(): string;
+	switchSession?(sessionFile: string, options: { withSession: (ctx: ExtensionCommandContext) => Promise<void> }): Promise<void>;
+	[key: string]: unknown;
 }
 
 export interface ExtensionContext {
@@ -72,14 +89,15 @@ export interface SessionHeader {
 	[key: string]: unknown;
 }
 
-export interface AgentToolResult {
+export interface AgentToolResult<T = unknown> {
+	details?: T;
 	[key: string]: unknown;
 }
 
-export type AgentToolUpdateCallback = (update: unknown) => void;
+export type AgentToolUpdateCallback<T = unknown> = (update: T) => void;
 
 export interface MessageRenderer {
-	[key: string]: unknown;
+	render(message: Message, options?: MessageRenderOptions): string[];
 }
 
 export interface MessageRenderOptions {
@@ -87,6 +105,8 @@ export interface MessageRenderOptions {
 }
 
 export interface Theme {
+	fg(color: string, text: string): string;
+	bold(text: string): string;
 	[key: string]: unknown;
 }
 
@@ -113,6 +133,15 @@ export interface SessionMessageEntry {
 		[key: string]: unknown;
 	};
 }
+
+export interface Message {
+	role: string;
+	content: string | { type: string; text: string }[];
+	[key: string]: unknown;
+}
+
+// ВНИМАНИЕ: Message дублирован в stubs/@mariozechner/pi-ai.ts.
+// При изменении структуры — обновить оба файла одновременно.
 
 export class DynamicBorder {
 	constructor(private _fn: (s: string) => string) {}
@@ -187,7 +216,11 @@ export class AuthStorage {
 
 export function createAgentSession() {}
 export function createAgentSessionRuntime() {}
-export class SessionManager {}
+export class SessionManager {
+	static forkFrom(_sourcePath: string, _targetDir: string): SessionManager { return new SessionManager(); }
+	getSessionFile(): string | undefined { return undefined; }
+	getHeader(): any { return {}; }
+}
 export class SettingsManager {
 	static create(_cwd?: string, _agentDir?: string) { return new SettingsManager(); }
 }
@@ -198,6 +231,8 @@ export class DefaultPackageManager {
 	}
 }
 export function defineTool() {}
+
+export const VERSION = "0.0.0-stub";
 
 // --- truncateHead stub ---
 export const DEFAULT_MAX_BYTES = 50 * 1024;

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { SessionManager } from "@mariozechner/pi-coding-agent";
 import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
@@ -6,7 +6,7 @@ import { mkdirSync } from "node:fs";
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("fork-to", {
     description: "Copy current session to another directory (usage: /fork-to ~/path)",
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
       const targetDir = args.trim();
       if (!targetDir) {
         ctx.ui.notify("Usage: /fork-to <target-directory>", "error");
@@ -26,7 +26,7 @@ export default function (pi: ExtensionAPI) {
 
       mkdirSync(resolved, { recursive: true });
       const sm = SessionManager.forkFrom(sourcePath, resolved);
-      await ctx.switchSession(sm.getSessionFile()!, {
+      await ctx.switchSession?.(sm.getSessionFile()!, {
         withSession: async (ctx) => {
           ctx.ui.notify(`Session copied to ${resolved}`, "info");
         },

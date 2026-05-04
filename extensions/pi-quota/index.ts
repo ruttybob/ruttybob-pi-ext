@@ -1,4 +1,4 @@
-import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, Theme, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { Key, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -444,7 +444,7 @@ function loadZAI(dash: Dashboard, requestRender: () => void): () => void {
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("quota", {
 		description: "Show unified quota dashboard for OpenRouter and ZAI",
-		handler: async (_args, ctx) => {
+		handler: async (_args: string, ctx: ExtensionCommandContext) => {
 			const orKey = process.env.OPENROUTER_API_KEY;
 			const zaiKey = process.env.ZAI_API_KEY;
 
@@ -474,7 +474,7 @@ export default function (pi: ExtensionAPI) {
 			// ── Interactive overlay ──────────────────────────────────
 			pi?.events?.emit("custom-ui:shown", { timestamp: Date.now() });
 			try {
-			await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+			await ctx.ui.custom<void>((tui: any, theme: any, _kb: any, done: () => void) => {
 				let closed = false;
 
 				const dash = new Dashboard(theme, () => { closed = true; done(); });

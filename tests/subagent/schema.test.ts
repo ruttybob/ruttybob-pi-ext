@@ -8,8 +8,7 @@ import { buildSchema, buildDescription } from "../../extensions/subagent/schema.
 
 describe("subagent/schema > buildSchema", () => {
 	it("включает tasks когда parallelEnabled: true", () => {
-		const schema = buildSchema({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4 });
-		expect(schema.properties).toHaveProperty("tasks");
+		const schema = buildSchema({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
 		expect(schema.properties).toHaveProperty("agent");
 		expect(schema.properties).toHaveProperty("task");
 		expect(schema.properties).toHaveProperty("chain");
@@ -17,8 +16,7 @@ describe("subagent/schema > buildSchema", () => {
 	});
 
 	it("НЕ включает tasks когда parallelEnabled: false", () => {
-		const schema = buildSchema({ parallelEnabled: false, maxParallelTasks: 8, maxConcurrency: 4 });
-		expect(schema.properties).not.toHaveProperty("tasks");
+		const schema = buildSchema({ parallelEnabled: false, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
 		expect(schema.properties).toHaveProperty("agent");
 		expect(schema.properties).toHaveProperty("task");
 		expect(schema.properties).toHaveProperty("chain");
@@ -28,7 +26,7 @@ describe("subagent/schema > buildSchema", () => {
 
 describe("subagent/schema > buildDescription", () => {
 	it("упоминает parallel когда enabled", () => {
-		const desc = buildDescription({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4 });
+		const desc = buildDescription({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
 		expect(desc).toContain("parallel");
 		expect(desc).toContain("concurrently");
 		expect(desc).toContain("single");
@@ -37,10 +35,31 @@ describe("subagent/schema > buildDescription", () => {
 	});
 
 	it("НЕ упоминает parallel когда disabled", () => {
-		const desc = buildDescription({ parallelEnabled: false, maxParallelTasks: 8, maxConcurrency: 4 });
+		const desc = buildDescription({ parallelEnabled: false, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
 		expect(desc).not.toContain("parallel");
 		expect(desc).toContain("single");
 		expect(desc).toContain("chain");
+	});
+});
+
+describe("subagent/schema > TaskItem.agent — Optional", () => {
+	it("description упоминает наследование agent от top-level", () => {
+		const desc = buildDescription({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
+		expect(desc).toContain("Omit agent");
+		expect(desc).toContain("inherit");
+	});
+
+	it("схема tasks позволяет task item без agent", () => {
+		const schema = buildSchema({ parallelEnabled: true, maxParallelTasks: 8, maxConcurrency: 4, agentScope: "user", confirmProjectAgents: true });
+		const tasksSchema = schema.properties.tasks;
+		const itemSchema = tasksSchema?.items as { properties: Record<string, unknown> } | undefined;
+		expect(itemSchema).toBeDefined();
+		expect(itemSchema!.properties).toHaveProperty("task");
+		// agent — optional: нет в required
+		const required = (itemSchema as any).required as string[] | undefined;
+		if (required) {
+			expect(required).not.toContain("agent");
+		}
 	});
 });
 

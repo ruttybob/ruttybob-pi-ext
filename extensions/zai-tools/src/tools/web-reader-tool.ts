@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { formatReaderResult } from '../utils/formatting.ts';
+import { formatReaderResult } from '../utils/formatting.js';
 
 export function createWebReaderTool(service: { read: (url: string) => Promise<{ payload: Record<string, unknown>; raw: unknown }> }) {
   return {

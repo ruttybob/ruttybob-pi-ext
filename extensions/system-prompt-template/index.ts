@@ -333,7 +333,7 @@ export default function systemPromptTemplate(pi: ExtensionAPI) {
   // --- TUI commands ---
   pi.registerCommand('reppi', {
     description: 'Manage REPPI system prompt template (status|show|edit|on|off)',
-    handler: async (args, ctx) => {
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
       const cmd = args.trim().toLowerCase().split(/\s+/)[0] || 'status';
       const sessionManager = ctx.sessionManager;
       const cwd = ctx.cwd;

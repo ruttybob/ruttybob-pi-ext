@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { formatRepoStructure } from '../utils/formatting.ts';
+import { formatRepoStructure } from '../utils/formatting.js';
 
 export function createZreadGetRepoStructureTool(service: { getRepoStructure: (repo: string) => Promise<{ payload: Record<string, unknown>; raw: unknown }> }) {
   return {

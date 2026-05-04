@@ -1,10 +1,10 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { McpToolResult, ZaiConfig } from '../types.ts';
-import { AuthError, RemoteMcpError } from '../utils/errors.ts';
-import { logger } from '../utils/logger.ts';
-import { createRateTracker } from '../utils/rate-limit.ts';
-import { withRetry } from '../utils/retry.ts';
+import type { McpToolResult, ZaiConfig } from '../types.js';
+import { AuthError, RemoteMcpError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
+import { createRateTracker } from '../utils/rate-limit.js';
+import { withRetry } from '../utils/retry.js';
 
 export interface RemoteMcpClient {
   callTool(toolName: string, args: Record<string, unknown>): Promise<McpToolResult>;

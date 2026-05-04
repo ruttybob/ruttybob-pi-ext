@@ -5,8 +5,8 @@
  * All side-effecting operations are injected via ToggleDeps for testability.
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import type { MeshState, Dirs } from "./types.js";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { MeshState, Dirs, FeedEventType } from "./types.js";
 
 /**
  * Names of all mesh tools — used for setActiveTools() filtering.
@@ -23,22 +23,24 @@ export interface ToggleDeps {
   pi: ExtensionAPI;
   state: MeshState;
   dirs: Dirs;
-  ctx: ExtensionContext;
+  ctx: ExtensionCommandContext;
   deliverMessage: (msg: any) => void;
-  updateStatusBar: (ctx: ExtensionContext) => void;
-  onRegistered?: (state: MeshState, ctx: ExtensionContext, actions: any) => Promise<void>;
-  startHooksPollTimer?: (ctx: ExtensionContext) => Promise<void>;
+  updateStatusBar: (ctx: ExtensionCommandContext) => void;
+  onRegistered?: (state: MeshState, ctx: ExtensionCommandContext, actions: any) => Promise<void>;
+  startHooksPollTimer?: (ctx: ExtensionCommandContext) => Promise<void>;
 
   // Injected side-effect functions for testability
   unregister: (state: MeshState, dirs: Dirs) => void;
   stopWatcher: (state: MeshState) => void;
   startWatcher: (state: MeshState, dirs: Dirs, deliverFn: (msg: any) => void) => void;
-  register: (state: MeshState, dirs: Dirs, ctx: ExtensionContext) => boolean;
-  removeAllReservations: (state: MeshState, dirs: Dirs, ctx: ExtensionContext) => string[];
-  logEvent: (dirs: Dirs, agentName: string, eventType: string, ...args: any[]) => void;
+  register: (state: MeshState, dirs: Dirs, ctx: ExtensionCommandContext) => boolean;
+  removeAllReservations: (state: MeshState, dirs: Dirs, ctx: ExtensionCommandContext) => string[];
+  logEvent: (dirs: Dirs, agentName: string, eventType: FeedEventType, target?: string, preview?: string) => void;
   pruneFeed: (dirs: Dirs, retention: number) => void;
   getActiveAgents: (state: MeshState, dirs: Dirs) => any[];
   extractFolder: (cwd: string) => string;
+  setActiveTools?: (tools: string[]) => void;
+  sendMessage?: (msg: any, opts: any) => void;
 }
 
 export interface ToggleResult {

@@ -1,8 +1,8 @@
-import { MCP_TOOL_NAMES } from '../constants.ts';
-import type { McpCaller, ZaiConfig } from '../types.ts';
-import { extractItemsFromResult } from '../utils/json-parse.ts';
-import { createTtlCache, type TtlCache } from '../utils/cache.ts';
-import { assertNonEmptyString } from '../utils/validation.ts';
+import { MCP_TOOL_NAMES } from '../constants.js';
+import type { McpCaller, ZaiConfig } from '../types.js';
+import { extractItemsFromResult } from '../utils/json-parse.js';
+import { createTtlCache, type TtlCache } from '../utils/cache.js';
+import { assertNonEmptyString } from '../utils/validation.js';
 
 export type SearchFreshness = 'day' | 'week' | 'month' | 'year';
 

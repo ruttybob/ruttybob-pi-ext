@@ -81,7 +81,9 @@ function buildConfig(raw: Record<string, unknown>): SubagentConfig {
 			typeof raw.maxConcurrency === "number" && raw.maxConcurrency > 0
 				? Math.min(raw.maxConcurrency, 32)
 				: DEFAULT_CONFIG.maxConcurrency,
-		agentScope: validScopes.has(raw.agentScope as string) ? (raw.agentScope as AgentScope) : DEFAULT_CONFIG.agentScope,
+		agentScope: typeof raw.agentScope === "string" && validScopes.has(raw.agentScope)
+			? raw.agentScope as AgentScope
+			: DEFAULT_CONFIG.agentScope,
 		confirmProjectAgents: raw.confirmProjectAgents !== false,
 	};
 }

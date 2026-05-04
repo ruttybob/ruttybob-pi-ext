@@ -5,9 +5,9 @@ const NAME_LENGTH_CAP = 80;
 
 // ─── Content extraction ───────────────────────────────────────────────────────
 
-function isLlmMessage(entry: SessionEntry): entry is SessionMessageEntry & { message: Message } {
+function isLlmMessage(entry: SessionEntry): entry is typeof entry & { message: Message } {
 	if (entry.type !== "message") return false;
-	const role = (entry as SessionMessageEntry).message.role;
+	const role = (entry as any).message.role;
 	return role === "user" || role === "assistant" || role === "toolResult";
 }
 

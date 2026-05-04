@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { formatFileContent } from '../utils/formatting.ts';
+import { formatFileContent } from '../utils/formatting.js';
 
 export function createZreadReadFileTool(service: { readFile: (repo: string, path: string) => Promise<{ payload: Record<string, unknown>; raw: unknown }> }) {
   return {

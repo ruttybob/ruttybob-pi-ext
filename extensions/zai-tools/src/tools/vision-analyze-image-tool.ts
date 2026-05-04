@@ -1,7 +1,7 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionAnalyzeImageTool(service: {
   analyzeImage: (imageSource: string, prompt: string) => Promise<unknown>;
@@ -22,7 +22,7 @@ export function createVisionAnalyzeImageTool(service: {
         onUpdate({ content: [{ type: 'text' as const, text: `🖼️ Vision — analyzing image...` }], details: undefined });
       }
       const result = await service.analyzeImage(params.image_source, params.prompt);
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'image analysis' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — image analysis complete` }], details: undefined });

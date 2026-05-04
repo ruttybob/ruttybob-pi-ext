@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { withRetry } from '../../extensions/zai-tools/src/utils/retry.ts';
+import { withRetry } from '../../extensions/zai-tools/src/utils/retry.js';
 
 describe('withRetry', () => {
   it('returns result on first successful attempt', async () => {

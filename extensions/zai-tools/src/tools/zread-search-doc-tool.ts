@@ -1,6 +1,6 @@
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
-import { formatSearchResults } from '../utils/formatting.ts';
+import { formatSearchResults } from '../utils/formatting.js';
 
 export function createZreadSearchDocTool(service: { searchDoc: (repo: string, query: string) => Promise<{ items: Array<Record<string, unknown>>; raw: unknown }> }) {
   return {

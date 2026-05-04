@@ -25,8 +25,8 @@ export const Type = {
 	Optional(schema: any): any {
 		return { ...schema, optional: true };
 	},
-	Union(schemas: any[]): any {
-		return { anyOf: schemas };
+	Union(schemas: any[], options?: any): any {
+		return { anyOf: schemas, ...options };
 	},
 	Literal(value: any): any {
 		return { const: value };

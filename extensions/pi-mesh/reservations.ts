@@ -2,7 +2,7 @@
  * Pi Mesh - File Reservations
  */
 
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { MeshState, Dirs } from "./types.js";
 import * as registry from "./registry.js";
 import { logEvent } from "./feed.js";
@@ -53,7 +53,7 @@ export function validateReservation(pattern: string): ValidationResult {
 export function addReservation(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext,
+  ctx: ExtensionCommandContext,
   pattern: string,
   reason?: string
 ): ValidationResult {
@@ -75,7 +75,7 @@ export function addReservation(
 export function removeReservation(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext,
+  ctx: ExtensionCommandContext,
   pattern: string
 ): boolean {
   const before = state.reservations.length;
@@ -92,7 +92,7 @@ export function removeReservation(
 export function removeAllReservations(
   state: MeshState,
   dirs: Dirs,
-  ctx: ExtensionContext
+  ctx: ExtensionCommandContext
 ): string[] {
   const released = state.reservations.map((r) => r.pattern);
   state.reservations = [];

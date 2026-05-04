@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createZreadService } from '../../extensions/zai-tools/src/services/zread.ts';
+import { createZreadService } from '../../extensions/zai-tools/src/services/zread.js';
 
 describe('createZreadService', () => {
   it('tries fallback argument shapes for search_doc', async () => {

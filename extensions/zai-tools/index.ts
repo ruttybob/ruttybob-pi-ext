@@ -1,28 +1,28 @@
-import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
-import { MCP_SERVER_PATHS } from './src/constants.ts';
-import { loadConfig } from './src/config.ts';
-import { createRemoteMcpClient } from './src/client/remote-mcp.ts';
-import { createStdioMcpClient } from './src/client/stdio-mcp.ts';
-import { createWebReaderService } from './src/services/web-reader.ts';
-import { createWebSearchService } from './src/services/web-search.ts';
-import { createZreadService } from './src/services/zread.ts';
-import { createVisionService } from './src/services/vision.ts';
-import { createWebReaderTool } from './src/tools/web-reader-tool.ts';
-import { createWebSearchTool } from './src/tools/web-search-tool.ts';
-import { createZreadGetRepoStructureTool } from './src/tools/zread-get-repo-structure-tool.ts';
-import { createZreadReadFileTool } from './src/tools/zread-read-file-tool.ts';
-import { createZreadSearchDocTool } from './src/tools/zread-search-doc-tool.ts';
-import { createVisionUiToArtifactTool } from './src/tools/vision-ui-to-artifact-tool.ts';
-import { createVisionExtractTextTool } from './src/tools/vision-extract-text-tool.ts';
-import { createVisionDiagnoseErrorTool } from './src/tools/vision-diagnose-error-tool.ts';
-import { createVisionUnderstandDiagramTool } from './src/tools/vision-understand-diagram-tool.ts';
-import { createVisionAnalyzeDataVizTool } from './src/tools/vision-analyze-data-viz-tool.ts';
-import { createVisionUiDiffCheckTool } from './src/tools/vision-ui-diff-check-tool.ts';
-import { createVisionAnalyzeImageTool } from './src/tools/vision-analyze-image-tool.ts';
-import { createVisionAnalyzeVideoTool } from './src/tools/vision-analyze-video-tool.ts';
-import type { EnvSource } from './src/types.ts';
-import { createToggleManager } from './src/toggle.ts';
-import { createGlobalStateStore } from './src/global-state.ts';
+import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
+import { MCP_SERVER_PATHS } from './src/constants.js';
+import { loadConfig } from './src/config.js';
+import { createRemoteMcpClient } from './src/client/remote-mcp.js';
+import { createStdioMcpClient } from './src/client/stdio-mcp.js';
+import { createWebReaderService } from './src/services/web-reader.js';
+import { createWebSearchService } from './src/services/web-search.js';
+import { createZreadService } from './src/services/zread.js';
+import { createVisionService } from './src/services/vision.js';
+import { createWebReaderTool } from './src/tools/web-reader-tool.js';
+import { createWebSearchTool } from './src/tools/web-search-tool.js';
+import { createZreadGetRepoStructureTool } from './src/tools/zread-get-repo-structure-tool.js';
+import { createZreadReadFileTool } from './src/tools/zread-read-file-tool.js';
+import { createZreadSearchDocTool } from './src/tools/zread-search-doc-tool.js';
+import { createVisionUiToArtifactTool } from './src/tools/vision-ui-to-artifact-tool.js';
+import { createVisionExtractTextTool } from './src/tools/vision-extract-text-tool.js';
+import { createVisionDiagnoseErrorTool } from './src/tools/vision-diagnose-error-tool.js';
+import { createVisionUnderstandDiagramTool } from './src/tools/vision-understand-diagram-tool.js';
+import { createVisionAnalyzeDataVizTool } from './src/tools/vision-analyze-data-viz-tool.js';
+import { createVisionUiDiffCheckTool } from './src/tools/vision-ui-diff-check-tool.js';
+import { createVisionAnalyzeImageTool } from './src/tools/vision-analyze-image-tool.js';
+import { createVisionAnalyzeVideoTool } from './src/tools/vision-analyze-video-tool.js';
+import type { EnvSource } from './src/types.js';
+import { createToggleManager } from './src/toggle.js';
+import { createGlobalStateStore } from './src/global-state.js';
 import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 
@@ -93,7 +93,7 @@ export default function zaiToolsExtension(pi: ExtensionAPI, options?: ExtensionO
 
   pi.registerCommand('zai-tools', {
     description: 'Toggle zai-tools on/off',
-    async handler(_args, ctx) {
+    async handler(_args: string, ctx: ExtensionCommandContext) {
       const { enabled, newActiveTools } = toggle.toggle(pi.getActiveTools() as string[]);
       pi.setActiveTools(newActiveTools);
       pi.appendEntry('custom', { customType: 'zai-tools-state', enabled });
@@ -105,7 +105,7 @@ export default function zaiToolsExtension(pi: ExtensionAPI, options?: ExtensionO
     },
   });
 
-  async function restoreFromBranch(_event: any, ctx: any) {
+  async function restoreFromBranch(_event: any, ctx: ExtensionCommandContext) {
     const branch = ctx.sessionManager.getBranch();
     const sessionResult = toggle.restoreFromEntries(branch);
     if (sessionResult) {

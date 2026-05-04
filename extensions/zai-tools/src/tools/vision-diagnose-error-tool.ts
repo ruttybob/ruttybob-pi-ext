@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionDiagnoseErrorTool(service: {
   diagnoseError: (imageSource: string, prompt: string, context?: string) => Promise<unknown>;
@@ -32,7 +32,7 @@ export function createVisionDiagnoseErrorTool(service: {
         onUpdate({ content: [{ type: 'text' as const, text: `🔧 Vision — diagnosing error from screenshot...` }], details: undefined });
       }
       const result = await service.diagnoseError(params.image_source, params.prompt, params.context);
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'error diagnosis' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — error diagnosis complete` }], details: undefined });

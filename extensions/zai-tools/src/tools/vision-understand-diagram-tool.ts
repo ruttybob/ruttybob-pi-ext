@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionUnderstandDiagramTool(service: {
   understandDiagram: (imageSource: string, prompt: string, diagramType?: string) => Promise<unknown>;
@@ -31,7 +31,7 @@ export function createVisionUnderstandDiagramTool(service: {
         onUpdate({ content: [{ type: 'text' as const, text: `📊 Vision — analyzing diagram${typeHint}...` }], details: undefined });
       }
       const result = await service.understandDiagram(params.image_source, params.prompt, params.diagram_type);
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'diagram analysis' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — diagram analysis complete${typeHint}` }], details: undefined });

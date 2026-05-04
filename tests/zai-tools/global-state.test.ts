@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createGlobalStateStore } from '../../extensions/zai-tools/src/global-state.ts';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createGlobalStateStore } from '../../extensions/zai-tools/src/global-state.js';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

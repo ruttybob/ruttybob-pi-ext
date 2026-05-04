@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWebSearchService } from '../../extensions/zai-tools/src/services/web-search.ts';
+import { createWebSearchService } from '../../extensions/zai-tools/src/services/web-search.js';
 
 describe('createWebSearchService', () => {
   it('falls back to the prefixed remote tool name when the documented name is unavailable', async () => {

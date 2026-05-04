@@ -1,4 +1,4 @@
-import { logger } from './logger.ts';
+import { logger } from './logger.js';
 
 export interface RateTrackerOptions {
   maxCalls: number;

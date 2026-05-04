@@ -1,4 +1,4 @@
-import type { McpToolResult } from '../types.ts';
+import type { McpToolResult } from '../types.js';
 
 /**
  * Try to parse a JSON string, handling double-encoding.

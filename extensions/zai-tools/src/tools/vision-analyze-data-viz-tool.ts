@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionAnalyzeDataVizTool(service: {
   analyzeDataViz: (imageSource: string, prompt: string, analysisFocus?: string) => Promise<unknown>;
@@ -33,7 +33,7 @@ export function createVisionAnalyzeDataVizTool(service: {
         onUpdate({ content: [{ type: 'text' as const, text: `📈 Vision — analyzing data visualization${focusHint}...` }], details: undefined });
       }
       const result = await service.analyzeDataViz(params.image_source, params.prompt, params.analysis_focus);
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'data viz analysis' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — data visualization analysis complete` }], details: undefined });

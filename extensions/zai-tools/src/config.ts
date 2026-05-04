@@ -1,6 +1,6 @@
-import { DEFAULT_BASE_URL, DEFAULT_TIMEOUT_MS } from './constants.ts';
-import type { EnvSource, ZaiConfig } from './types.ts';
-import { parseEnabledModules, parseTimeoutMs } from './utils/validation.ts';
+import { DEFAULT_BASE_URL, DEFAULT_TIMEOUT_MS } from './constants.js';
+import type { EnvSource, ZaiConfig } from './types.js';
+import { parseEnabledModules, parseTimeoutMs } from './utils/validation.js';
 
 function parseSearchLocation(value?: string): ZaiConfig['searchLocation'] {
   if (!value) return 'us';

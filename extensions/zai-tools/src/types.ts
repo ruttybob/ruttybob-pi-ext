@@ -1,4 +1,4 @@
-import { ENABLED_MODULES } from './constants.ts';
+import { ENABLED_MODULES } from './constants.js';
 
 export type EnabledModule = (typeof ENABLED_MODULES)[number];
 

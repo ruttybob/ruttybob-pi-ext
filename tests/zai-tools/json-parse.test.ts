@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseJsonFromText, extractItemsFromResult, extractPayloadFromResult } from '../../extensions/zai-tools/src/utils/json-parse.ts';
+import { parseJsonFromText, extractItemsFromResult, extractPayloadFromResult } from '../../extensions/zai-tools/src/utils/json-parse.js';
 
 describe('parseJsonFromText', () => {
   it('parses a JSON array from a string', () => {
@@ -48,11 +48,11 @@ describe('extractItemsFromResult', () => {
 
   it('extracts from structuredContent.docs', () => {
     const result = {
-      structuredContent: { docs: [{ path: 'a.ts' }] },
+      structuredContent: { docs: [{ path: 'a.js' }] },
     };
     const items = extractItemsFromResult(result);
     expect(items).toHaveLength(1);
-    expect(items[0].path).toBe('a.ts');
+    expect(items[0].path).toBe('a.js');
   });
 
   it('extracts from structuredContent.data', () => {

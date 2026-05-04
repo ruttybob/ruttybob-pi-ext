@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { resolve } from "node:path";
 import os from "node:os";
 import { promises as fs } from "node:fs";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { fileExists, readJsonFile } from "../shared/fs.js";
 import { isTerminalStatus, nowIso, statusShort, statusColorRole, normalizeAgentId, summarizeTask } from "./utils.js";
 import type { AgentRecord, AgentStatusSnapshot, StatusTransitionNotice, ThemeForeground, ExitMarker, RegistryFile } from "./types.js";
@@ -27,7 +27,7 @@ const EMIT_DEDUP_WINDOW_MS = 2000;
 
 let pollerGeneration = 0;
 let statusPollTimer: NodeJS.Timeout | undefined;
-let statusPollContext: ExtensionContext | undefined;
+let statusPollContext: ExtensionCommandContext | undefined;
 let statusPollApi: ExtensionAPI | undefined;
 let statusPollInFlight = false;
 
@@ -93,7 +93,7 @@ function isChildRuntime(): boolean {
 	return Boolean(process.env[ENV_AGENT_ID]);
 }
 
-export function emitStatusTransitions(pi: ExtensionAPI, ctx: ExtensionContext, transitions: StatusTransitionNotice[]): void {
+export function emitStatusTransitions(pi: ExtensionAPI, ctx: ExtensionCommandContext, transitions: StatusTransitionNotice[]): void {
 	if (isChildRuntime()) return;
 
 	for (const transition of transitions) {
@@ -144,7 +144,7 @@ export function isLatestGeneration(): boolean {
 	}
 }
 
-export function getStateRoot(ctx: ExtensionContext): string {
+export function getStateRoot(ctx: ExtensionCommandContext): string {
 	const fromEnv = process.env[ENV_STATE_ROOT];
 	if (fromEnv) return resolve(fromEnv);
 	return resolveGitRoot(ctx.cwd);
@@ -280,7 +280,7 @@ export async function agentCheckPayload(stateRoot: string, agentId: string): Pro
 	};
 }
 
-export async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionContext, options?: { emitTransitions?: boolean }): Promise<void> {
+export async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionCommandContext, options?: { emitTransitions?: boolean }): Promise<void> {
 	if (!ctx.hasUI) return;
 
 	const stateRoot = getStateRoot(ctx);
@@ -322,7 +322,7 @@ export async function renderStatusLine(pi: ExtensionAPI, ctx: ExtensionContext, 
 	lastRenderedStatusLine = line;
 }
 
-export function ensureStatusPoller(pi: ExtensionAPI, ctx: ExtensionContext): void {
+export function ensureStatusPoller(pi: ExtensionAPI, ctx: ExtensionCommandContext): void {
 	statusPollContext = ctx;
 	statusPollApi = pi;
 	if (!ctx.hasUI) return;
@@ -362,7 +362,7 @@ export function ensureStatusPoller(pi: ExtensionAPI, ctx: ExtensionContext): voi
 	void renderStatusLine(pi, ctx).catch(() => {});
 }
 
-export function getStatusPollContext(): ExtensionContext | undefined {
+export function getStatusPollContext(): ExtensionCommandContext | undefined {
 	return statusPollContext;
 }
 
@@ -370,7 +370,7 @@ export function getStatusPollApi(): ExtensionAPI | undefined {
 	return statusPollApi;
 }
 
-export function setStatusPollContext(ctx: ExtensionContext): void {
+export function setStatusPollContext(ctx: ExtensionCommandContext): void {
 	statusPollContext = ctx;
 }
 

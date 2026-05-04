@@ -1,8 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { McpCallerWithCleanup, McpToolResult, ZaiConfig } from '../types.ts';
-import { AuthError, RemoteMcpError } from '../utils/errors.ts';
-import { logger } from '../utils/logger.ts';
+import type { McpCallerWithCleanup, McpToolResult, ZaiConfig } from '../types.js';
+import { AuthError, RemoteMcpError } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 
 export function createStdioMcpClient(config: ZaiConfig): McpCallerWithCleanup {
   let client: Client | null = null;

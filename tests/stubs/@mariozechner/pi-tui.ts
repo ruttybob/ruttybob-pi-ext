@@ -14,6 +14,7 @@ export const Key = {
 	tab: "\t",
 	pageUp: "\x1b[5~",
 	pageDown: "\x1b[6~",
+	backspace: "\x7f",
 	ctrl: (c: string) => String.fromCharCode(c.charCodeAt(0) - 96),
 	shift: (c: string) => c,
 };
@@ -59,6 +60,7 @@ export function wrapTextWithAnsi(s: string, w: number): string[] {
 }
 
 export class Markdown {
+	constructor(_text?: any, _indent?: number, _width?: number, _theme?: any) {}
 	render(): string { return ""; }
 }
 export class Container {
@@ -103,10 +105,12 @@ export class Box {
 	render(): string { return ""; }
 }
 export class Component {
-	render(): string { return ""; }
+	id?: string;
+	render(_width?: number): string[] { return []; }
 }
 export class TUI {
 	render(): string { return ""; }
+	requestRender(): void {}
 }
 
 // --- Для pi-auto-rename ---

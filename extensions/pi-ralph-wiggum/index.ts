@@ -12,6 +12,7 @@ import { readdir, rename, rmdir } from "node:fs/promises";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
+	ExtensionCommandContext,
 } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import {
@@ -128,7 +129,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function loadState(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		name: string,
 		archived = false,
 	): Promise<LoopState | null> {
@@ -141,7 +142,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function saveState(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		state: LoopState,
 		archived = false,
 	): Promise<void> {
@@ -159,7 +160,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function listLoops(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		archived = false,
 	): Promise<LoopState[]> {
 		const dir = archived
@@ -182,7 +183,7 @@ export default function (pi: ExtensionAPI) {
 	// --- Loop state transitions ---
 
 	async function pauseLoop(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		state: LoopState,
 		message?: string,
 	): Promise<void> {
@@ -196,7 +197,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function completeLoop(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		state: LoopState,
 		banner: string,
 	): Promise<string> {
@@ -211,7 +212,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function stopLoop(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		state: LoopState,
 		message?: string,
 	): Promise<void> {
@@ -233,7 +234,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function runLoop(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		state: LoopState,
 		signal?: AbortSignal,
 		onUpdate?: (update: { content: Array<{ type: "text"; text: string }> }) => void,
@@ -271,8 +272,8 @@ export default function (pi: ExtensionAPI) {
 
 			const systemAppend = buildSystemPromptAppend(
 				state,
-				progressContent,
-				reflectionContent,
+				progressContent ?? null,
+				reflectionContent ?? null,
 			);
 
 			const needsReflection =
@@ -396,7 +397,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function updateUI(
-		ctx: ExtensionContext,
+		ctx: ExtensionCommandContext,
 		progress?: ProgressState,
 	): Promise<void> {
 		if (!ctx.hasUI) return;
@@ -526,7 +527,7 @@ export default function (pi: ExtensionAPI) {
 
 	const commands: Record<
 		string,
-		(rest: string, ctx: ExtensionContext) => Promise<void>
+		(rest: string, ctx: ExtensionCommandContext) => Promise<void>
 	> = {
 		async start(rest, ctx) {
 			const args = parseArgs(rest);
@@ -958,7 +959,7 @@ export default function (pi: ExtensionAPI) {
 							"Delete all Ralph loop files?",
 							warning,
 						)
-						.then(async (confirmed) => {
+						.then(async (confirmed: boolean) => {
 							if (confirmed) await run();
 						});
 				} else {
@@ -1004,7 +1005,7 @@ Examples:
 	pi.registerCommand("ralph", {
 		description:
 			"Ralph Wiggum - long-running development loops",
-		handler: async (args, ctx) => {
+		handler: async (args: string, ctx: ExtensionCommandContext & { isIdle: () => boolean }) => {
 			const [cmd] = args.trim().split(/\s+/);
 			const handler = commands[cmd];
 			if (handler) {
@@ -1017,7 +1018,7 @@ Examples:
 
 	pi.registerCommand("ralph-stop", {
 		description: "Stop active Ralph loop (idle only)",
-		handler: async (_args, ctx) => {
+		handler: async (_args: string, ctx: ExtensionCommandContext & { isIdle: () => boolean }) => {
 			if (!ctx.isIdle()) {
 				if (ctx.hasUI) {
 					ctx.ui.notify(
@@ -1106,11 +1107,11 @@ Examples:
 			),
 		}),
 		async execute(
-			_toolCallId,
-			params,
-			_signal,
-			_onUpdate,
-			ctx,
+			_toolCallId: string,
+			params: Record<string, any>,
+			_signal: AbortSignal | undefined,
+			_onUpdate: ((update: any) => void) | undefined,
+			ctx: ExtensionCommandContext & { isIdle: () => boolean },
 		) {
 			const loopName = sanitize(params.name);
 			const taskFile = path.join(

@@ -25,6 +25,7 @@ export interface MockContext {
 		setStatus: (...args: any[]) => void;
 		setWidget: (...args: any[]) => void;
 		setTitle: (...args: any[]) => void;
+		theme?: { fg: (color: string, text: string) => string; bold: (text: string) => string };
 	};
 	sessionManager: {
 		getEntries: (...args: any[]) => any[];
@@ -36,6 +37,7 @@ export interface MockContext {
 		getApiKeyAndHeaders: (...args: any[]) => Promise<any>;
 		find: (...args: any[]) => any;
 		getAll: (...args: any[]) => any[];
+		getAvailable: (...args: any[]) => any[];
 	};
 	getSystemPrompt: (...args: any[]) => string;
 	getContextUsage: (...args: any[]) => { tokens: number; contextWindow: number; percent: number };

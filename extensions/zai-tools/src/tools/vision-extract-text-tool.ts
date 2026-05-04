@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionExtractTextTool(service: {
   extractText: (imageSource: string, prompt: string, programmingLanguage?: string) => Promise<unknown>;
@@ -31,7 +31,7 @@ export function createVisionExtractTextTool(service: {
         onUpdate({ content: [{ type: 'text' as const, text: `📝 Vision — extracting text from image${langHint}...` }], details: undefined });
       }
       const result = await service.extractText(params.image_source, params.prompt, params.programming_language);
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'extracted text' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — text extracted successfully${langHint}` }], details: undefined });

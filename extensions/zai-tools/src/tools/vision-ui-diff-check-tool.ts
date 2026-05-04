@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
-import { extractVisionText } from '../services/vision.ts';
-import { truncateText } from '../utils/truncation.ts';
+import { extractVisionText } from '../services/vision.js';
+import { truncateText } from '../utils/truncation.js';
 
 export function createVisionUiDiffCheckTool(service: {
   uiDiffCheck: (expectedImageSource: string, actualImageSource: string, prompt: string) => Promise<unknown>;
@@ -39,7 +39,7 @@ export function createVisionUiDiffCheckTool(service: {
         params.actual_image_source,
         params.prompt,
       );
-      const text = extractVisionText(result as import('../types.ts').McpToolResult);
+      const text = extractVisionText(result as import('../types.js').McpToolResult);
       const truncated = truncateText(text, { maxChars: 12_000, label: 'UI diff check' });
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `✅ Vision — UI comparison complete` }], details: undefined });

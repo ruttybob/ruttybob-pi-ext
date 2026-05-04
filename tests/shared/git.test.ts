@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shellQuote } from "../../extensions/shared/git.ts";
+import { shellQuote } from "../../extensions/shared/git.js";
 
 describe("shared/git", () => {
 	describe("shellQuote", () => {

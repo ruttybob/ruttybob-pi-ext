@@ -6,6 +6,7 @@
 		"strict": true,
 		"esModuleInterop": true,
 		"skipLibCheck": true,
+		"types": ["node"],
 		"paths": {
 			"@modelcontextprotocol/sdk/client/index.js": ["./tests/stubs/@modelcontextprotocol/sdk/client/index.ts"],
 			"@modelcontextprotocol/sdk/client/streamableHttp.js": ["./tests/stubs/@modelcontextprotocol/sdk/client/streamableHttp.ts"],

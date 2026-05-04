@@ -5,7 +5,7 @@
  * and an interactive overlay for multiple Pi sessions.
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { isAbsolute, resolve } from "node:path";
@@ -81,7 +81,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
   // Status Bar
   // ===========================================================================
 
-  function updateStatusBar(ctx: ExtensionContext): void {
+  function updateStatusBar(ctx: ExtensionCommandContext): void {
     if (!ctx.hasUI || !state.registered) return;
 
     const agents = registry.getActiveAgents(state, dirs);
@@ -123,7 +123,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
     }
   }
 
-  function buildHookActions(ctx: ExtensionContext): import("./types.js").HookActions {
+  function buildHookActions(ctx: ExtensionCommandContext): import("./types.js").HookActions {
     const actions: import("./types.js").HookActions = {
       async rename(newName: string) {
         messaging.stopWatcher(state);
@@ -142,7 +142,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
     return actions;
   }
 
-  async function startHooksPollTimer(ctx: ExtensionContext): Promise<void> {
+  async function startHooksPollTimer(ctx: ExtensionCommandContext): Promise<void> {
     if (hooksPollTimer || !hooks.onPollTick) return;
 
     // Default 2s poll interval. Hooks can customize by setting
@@ -177,7 +177,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
   // Registry Flush Scheduling
   // ===========================================================================
 
-  function scheduleRegistryFlush(ctx: ExtensionContext): void {
+  function scheduleRegistryFlush(ctx: ExtensionCommandContext): void {
     if (state.registryFlushTimer) return;
     state.registryFlushTimer = setTimeout(() => {
       state.registryFlushTimer = null;
@@ -196,7 +196,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       "List active agents in the mesh with their current activity, reservations, and status.",
     parameters: Type.Object({}),
 
-    async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
+    async execute(_toolCallId: string, _params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, _ctx: ExtensionCommandContext) {
       if (!state.registered) {
         return notRegistered();
       }
@@ -288,7 +288,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+    async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, _ctx: ExtensionCommandContext) {
       if (!state.registered) return notRegistered();
 
       const { to, broadcast, message, urgent, replyTo } = params as {
@@ -366,7 +366,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+    async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
       if (!state.registered) return notRegistered();
 
       const { paths, reason } = params as {
@@ -417,7 +417,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+    async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
       if (!state.registered) return notRegistered();
 
       const { paths } = params as { paths?: string[] };
@@ -480,7 +480,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+    async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
       if (!state.registered) return notRegistered();
 
       const { action, name, message, limit } = params as {
@@ -559,7 +559,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
     return result(lines.join("\n"));
   }
 
-  async function executeRename(name: string | undefined, ctx: ExtensionContext) {
+  async function executeRename(name: string | undefined, ctx: ExtensionCommandContext) {
     if (!name) return result("Error: name required for rename.");
 
     messaging.stopWatcher(state);
@@ -580,7 +580,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   function executeSetStatus(
     message: string | undefined,
-    ctx: ExtensionContext
+    ctx: ExtensionCommandContext
   ) {
     if (!message || message.trim() === "") {
       state.statusMessage = undefined;
@@ -612,7 +612,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
   // Command: /mesh-tools (toggle)
   // ===========================================================================
 
-  function buildToggleDeps(ctx: ExtensionContext): ToggleDeps {
+  function buildToggleDeps(ctx: ExtensionCommandContext): ToggleDeps {
     return {
       pi,
       state,
@@ -641,7 +641,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-tools", {
     description: "Toggle mesh participation on/off",
-    async handler(_args, ctx) {
+    async handler(_args: string, ctx: ExtensionCommandContext) {
       if (!ctx.hasUI) return;
 
       const deps = buildToggleDeps(ctx);
@@ -670,7 +670,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-agents", {
     description: "Show mesh agents list as notification",
-    async handler(_args, ctx) {
+    async handler(_args: string, ctx: ExtensionCommandContext) {
       if (!ctx.hasUI) return;
       if (!state.registered) {
         ctx.ui.notify("Not registered in mesh", "error");
@@ -725,7 +725,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-feed", {
     description: "Show mesh activity feed as notification",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: ExtensionCommandContext) => {
       if (!ctx.hasUI) return;
       if (!state.registered) {
         ctx.ui.notify("Not registered in mesh", "error");
@@ -753,7 +753,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-chat", {
     description: "Open mesh chat overlay",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: ExtensionCommandContext) => {
       if (!ctx.hasUI) return;
       if (!state.registered) {
         ctx.ui.notify("Not registered in mesh", "error");
@@ -764,7 +764,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
       pi.events?.emit("custom-ui:shown", { timestamp: Date.now() });
 
       await ctx.ui.custom<void>(
-        (tui, theme, _keybindings, done) => {
+        (tui: any, theme: any, _keybindings: any, done: () => void) => {
           return new ChatOverlay(tui, theme, state, dirs, config, done);
         },
         {
@@ -788,7 +788,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-rename", {
     description: "Rename your agent in the mesh",
-    async handler(args, ctx) {
+    async handler(args: string, ctx: ExtensionCommandContext) {
       if (!ctx.hasUI) return;
       if (!state.registered) {
         ctx.ui.notify("Not registered in mesh", "error");
@@ -826,7 +826,7 @@ export default function piMeshExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("mesh-clear", {
     description: "Clear all pending inbox messages",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: ExtensionCommandContext) => {
       if (!ctx.hasUI) return;
 
       if (!state.registered) {

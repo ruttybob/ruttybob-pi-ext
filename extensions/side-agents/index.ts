@@ -5,13 +5,13 @@
  * Вся бизнес-логика делегирована модулям.
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
-import { sleep, stringifyError, nowIso, isTerminalStatus, sanitizeSlug, slugFromTask, deduplicateSlug, normalizeAgentId, normalizeWaitStates, statusColorRole } from "./utils.js";
+import { sleep, stringifyError, nowIso, isTerminalStatus, sanitizeSlug, slugFromTask, deduplicateSlug, normalizeAgentId, normalizeWaitStates, statusColorRole, summarizeTask } from "./utils.js";
 import type { AgentStatus, AgentRecord, StartAgentParams, StartAgentResult, PrepareRuntimeDirResult, ThemeForeground } from "./types.js";
 import { CHILD_LINK_ENTRY_TYPE, PROMPT_UPDATE_MESSAGE_TYPE, ENV_AGENT_ID, ENV_PARENT_SESSION } from "./types.js";
 import { ensureDir, fileExists, readJsonFile, atomicWrite } from "../shared/fs.js";
@@ -117,7 +117,7 @@ async function prepareFreshRuntimeDir(stateRoot: string, agentId: string): Promi
 	}
 }
 
-async function buildKickoffPrompt(ctx: ExtensionContext, task: string, _includeSummary: boolean): Promise<{ prompt: string; warning?: string }> {
+async function buildKickoffPrompt(ctx: ExtensionCommandContext, task: string, _includeSummary: boolean): Promise<{ prompt: string; warning?: string }> {
 	const parentSession = ctx.sessionManager.getSessionFile();
 
 	const prompt = [
@@ -270,7 +270,7 @@ async function resolveModeToModelSpec(cwd: string, modeName: string): Promise<{ 
 
 async function inferCurrentModeModelSpec(
 	cwd: string,
-	ctx: ExtensionContext,
+	ctx: ExtensionCommandContext,
 	thinkingLevel: string,
 ): Promise<string | undefined> {
 	if (!ctx.model) return undefined;
@@ -326,7 +326,7 @@ function withThinking(modelSpec: string, thinking?: string): string {
 }
 
 async function resolveModelSpecForChild(
-	ctx: ExtensionContext,
+	ctx: ExtensionCommandContext,
 	requested?: string,
 	thinkingLevel?: string,
 ): Promise<{ modelSpec?: string; warning?: string }> {
@@ -351,7 +351,7 @@ async function resolveModelSpecForChild(
 	}
 
 	try {
-		const available = (await ctx.modelRegistry.getAvailable()) as Array<{ provider: string; id: string }>;
+		const available = (await ctx.modelRegistry!.getAvailable()) as Array<{ provider: string; id: string }>;
 		const exact = available.filter((model) => model.id === pattern);
 
 		if (exact.length === 1) {
@@ -383,7 +383,7 @@ async function resolveModelSpecForChild(
 // Core operations
 // ---------------------------------------------------------------------------
 
-async function startAgent(pi: ExtensionAPI, ctx: ExtensionContext, params: StartAgentParams): Promise<StartAgentResult> {
+async function startAgent(pi: ExtensionAPI, ctx: ExtensionCommandContext, params: StartAgentParams): Promise<StartAgentResult> {
 	ensureTmuxReady();
 
 	const stateRoot = getStateRoot(ctx);
@@ -596,7 +596,7 @@ async function sendToAgent(stateRoot: string, agentId: string, prompt: string): 
 	return { ok: true, message: `Sent prompt to ${normalizedId}` };
 }
 
-async function setChildRuntimeStatus(ctx: ExtensionContext, nextStatus: AgentStatus): Promise<void> {
+async function setChildRuntimeStatus(ctx: ExtensionCommandContext, nextStatus: AgentStatus): Promise<void> {
 	const agentId = process.env[ENV_AGENT_ID];
 	if (!agentId) return;
 
@@ -676,7 +676,7 @@ async function waitForAny(
 	}
 }
 
-async function ensureChildSessionLinked(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+async function ensureChildSessionLinked(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
 	const agentId = process.env[ENV_AGENT_ID];
 	if (!agentId) return;
 
@@ -718,7 +718,7 @@ async function ensureChildSessionLinked(pi: ExtensionAPI, ctx: ExtensionContext)
 		await atomicWrite(lockPath, JSON.stringify(lock, null, 2) + "\n");
 	}
 
-	const hasLinkEntry = ctx.sessionManager.getEntries().some((entry) => {
+	const hasLinkEntry = ctx.sessionManager.getEntries().some((entry: any) => {
 		if (entry.type !== "custom") return false;
 		const customEntry = entry as { customType?: string };
 		return customEntry.customType === CHILD_LINK_ENTRY_TYPE;
@@ -733,7 +733,7 @@ async function ensureChildSessionLinked(pi: ExtensionAPI, ctx: ExtensionContext)
 	}
 }
 
-function renderInfoMessage(pi: ExtensionAPI, ctx: ExtensionContext, title: string, lines: string[]): void {
+function renderInfoMessage(pi: ExtensionAPI, ctx: ExtensionCommandContext, title: string, lines: string[]): void {
 	const content = [title, "", ...lines].join("\n");
 	if (ctx.hasUI) {
 		pi.sendMessage({
@@ -775,7 +775,7 @@ function emitKickoffPromptMessage(pi: ExtensionAPI, started: StartAgentResult): 
 export default function sideAgentsExtension(pi: ExtensionAPI) {
 	pi.registerCommand("agent", {
 		description: "Spawn a background child agent in its own tmux window/worktree: /agent [-model <provider/id>] [-mode <name>] <task>",
-		handler: async (args, ctx) => {
+		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const parsed = parseAgentCommandArgs(args);
 			if (!parsed.task) {
 				ctx.hasUI && ctx.ui.notify("Usage: /agent [-model <provider/id>] [-mode <name>] <task>", "error");
@@ -823,7 +823,7 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 
 	pi.registerCommand("agents", {
 		description: "List tracked side agents",
-		handler: async (_args, ctx) => {
+		handler: async (_args: string, ctx: ExtensionCommandContext) => {
 			const stateRoot = getStateRoot(ctx);
 			const repoRoot = resolveGitRoot(stateRoot);
 			let registry = await loadRegistry(stateRoot);
@@ -983,7 +983,7 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 			branchHint: Type.String({ description: "Short kebab-case branch slug, max 3 words (e.g. fix-auth-leak)" }),
 			model: Type.Optional(Type.String({ description: "Model as provider/modelId (optional)" })),
 		}),
-		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+		async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
 			try {
 				const started = await startAgent(pi, ctx, {
 					task: params.description,
@@ -1028,7 +1028,7 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 		parameters: Type.Object({
 			id: Type.String({ description: "Agent id" }),
 		}),
-		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+		async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
 			try {
 				const payload = await agentCheckPayload(getStateRoot(ctx), params.id);
 				return {
@@ -1050,7 +1050,7 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 		parameters: Type.Object({
 			ids: Type.Array(Type.String({ description: "Agent id" }), { description: "Agent ids to wait for" }),
 		}),
-		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+		async execute(_toolCallId: string, params: Record<string, any>, signal: AbortSignal, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
 			try {
 				const payload = await waitForAny(getStateRoot(ctx), params.ids, signal);
 				return {
@@ -1073,7 +1073,7 @@ export default function sideAgentsExtension(pi: ExtensionAPI) {
 			id: Type.String({ description: "Agent id" }),
 			prompt: Type.String({ description: "Prompt text to send (prefix with '!' to interrupt first instead of organic steering, '/' for slash commands like /quit)" }),
 		}),
-		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+		async execute(_toolCallId: string, params: Record<string, any>, _signal: AbortSignal | undefined, _onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
 			try {
 				const payload = await sendToAgent(getStateRoot(ctx), params.id, params.prompt);
 				return {

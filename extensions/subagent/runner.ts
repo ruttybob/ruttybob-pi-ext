@@ -170,7 +170,7 @@ export async function runSingleAgent(
 
 					if (msg.role === "assistant") {
 						currentResult.usage.turns++;
-						const usage = msg.usage;
+						const usage = msg.usage as Record<string, any> | undefined;
 						if (usage) {
 							currentResult.usage.input += usage.input || 0;
 							currentResult.usage.output += usage.output || 0;
@@ -179,9 +179,9 @@ export async function runSingleAgent(
 							currentResult.usage.cost += usage.cost?.total || 0;
 							currentResult.usage.contextTokens = usage.totalTokens || 0;
 						}
-						if (!currentResult.model && msg.model) currentResult.model = msg.model;
-						if (msg.stopReason) currentResult.stopReason = msg.stopReason;
-						if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
+						if (!currentResult.model && msg.model) currentResult.model = msg.model as string;
+						if (msg.stopReason) currentResult.stopReason = msg.stopReason as string;
+						if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage as string;
 					}
 					emitUpdate();
 				}
