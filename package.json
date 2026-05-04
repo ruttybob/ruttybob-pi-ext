@@ -16,6 +16,7 @@
 			"./prompts"
 		],
 		"skills": [
+			"./skills",
 			"./extensions/system-prompt-template/skills",
 			"./extensions/pi-ralph-wiggum/skills",
 			"./extensions/side-agents/skills"

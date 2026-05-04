@@ -9,12 +9,6 @@ Write comprehensive implementation plans assuming the implementer has zero conte
 
 **Core principle:** A good plan makes implementation obvious. If someone has to guess, the plan is incomplete.
 
-## Input
-
-Путь к оригинальному плану из `/plan` — передаётся как аргумент:
-```
-/plan-detailed .plans/2026-05-02_183000-auth-refactor.md
-```
 
 1. Прочитай оригинальный план целиком — он контекст и структура
 2. Погрузись в код — читай файлы, которые план затрагивает

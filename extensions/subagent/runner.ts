@@ -15,7 +15,7 @@ import type { AgentConfig } from "./agents.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
 import { getDisplayItems, getFinalOutput } from "./utils.js";
 
-// --- Константы ---
+// --- Константы вынесены в config.ts, но оставляем дефолты для обратной совместимости ---
 
 export const MAX_PARALLEL_TASKS = 8;
 export const MAX_CONCURRENCY = 4;

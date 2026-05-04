@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- **subagent**: динамическая сборка JSON-схемы tool — при `parallelEnabled: false` поле `tasks` отсутствует в схеме; конфигурация через `settings.json` (defaults → global → project)
+- **evolver/tests**: placeholder-тесты (`markdown.test.ts`, `memory-graph.test.ts`, `utils.test.ts`) заменены на полноценные unit-тесты с temp-директориями и реальными вызовами
+- **package.json**: добавлен путь `./skills` в секцию `skills`
+
+### Changed
+
+- **subagent**: `runner.ts` — комментарий о выносе констант в `config.ts`
+- **prompts/plan-detailed**: убрана устаревшая секция Input
+
 ### Changed
 
 - **subagent**: монолит index.ts (987 строк) декомпозирован на модули types, runner, render, utils — entry point содержит только tool-регистрацию

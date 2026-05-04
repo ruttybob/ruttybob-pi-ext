@@ -1,5 +1,5 @@
 // tests/evolver/memory-graph.test.ts
-// Baseline-тесты для memory-graph.ts перед рефакторингом evolver.
+// Baseline-тесты для memory-graph.ts (async).
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { join } from "node:path";
@@ -52,71 +52,71 @@ describe("memory-graph", () => {
 	});
 
 	describe("appendEntry + readLastNEntries", () => {
-		it("создаёт JSONL-файл и записывает одну запись", () => {
-			const ok = appendEntry(tmpDir, sampleEntry);
+		it("создаёт JSONL-файл и записывает одну запись", async () => {
+			const ok = await appendEntry(tmpDir, sampleEntry);
 			expect(ok).toBe(true);
 
-			const entries = readLastNEntries(tmpDir, 5);
+			const entries = await readLastNEntries(tmpDir, 5);
 			expect(entries).toHaveLength(1);
 			expect(entries[0].gene_id).toBe("ad_hoc");
 			expect(entries[0].signals).toEqual(["log_error", "test_failure"]);
 		});
 
-		it("добавляет несколько записей", () => {
-			appendEntry(tmpDir, { ...sampleEntry, timestamp: "2026-05-04T10:00:00.000Z" });
-			appendEntry(tmpDir, { ...sampleEntry, timestamp: "2026-05-04T11:00:00.000Z" });
+		it("добавляет несколько записей", async () => {
+			await appendEntry(tmpDir, { ...sampleEntry, timestamp: "2026-05-04T10:00:00.000Z" });
+			await appendEntry(tmpDir, { ...sampleEntry, timestamp: "2026-05-04T11:00:00.000Z" });
 
-			const entries = readLastNEntries(tmpDir, 10);
+			const entries = await readLastNEntries(tmpDir, 10);
 			expect(entries).toHaveLength(2);
 		});
 
-		it("readLastNEntries возвращает последние N записей", () => {
+		it("readLastNEntries возвращает последние N записей", async () => {
 			for (let i = 0; i < 5; i++) {
-				appendEntry(tmpDir, {
+				await appendEntry(tmpDir, {
 					...sampleEntry,
 					timestamp: `2026-05-04T${String(10 + i).padStart(2, "0")}:00:00.000Z`,
 					outcome: { status: "success", score: 0.8, note: `entry-${i}` },
 				});
 			}
 
-			const entries = readLastNEntries(tmpDir, 3);
+			const entries = await readLastNEntries(tmpDir, 3);
 			expect(entries).toHaveLength(3);
 			expect(entries[2].outcome.note).toBe("entry-4");
 		});
 
-		it("возвращает пустой массив если файла нет", () => {
-			const entries = readLastNEntries(tmpDir, 5);
+		it("возвращает пустой массив если файла нет", async () => {
+			const entries = await readLastNEntries(tmpDir, 5);
 			expect(entries).toEqual([]);
 		});
 
 		it("пропускает невалидные JSON-строки", async () => {
-			appendEntry(tmpDir, sampleEntry);
+			await appendEntry(tmpDir, sampleEntry);
 
 			// Добавляем мусорную строку вручную
 			const filePath = getMemoryGraphPath(tmpDir);
 			await writeFile(filePath, "\nnot-json", { flag: "a" });
 
-			const entries = readLastNEntries(tmpDir, 10);
+			const entries = await readLastNEntries(tmpDir, 10);
 			expect(entries).toHaveLength(1);
 		});
 	});
 
 	describe("formatMemoryDigest", () => {
-		it("возвращает null если записей нет", () => {
-			expect(formatMemoryDigest(tmpDir, 5)).toBeNull();
+		it("возвращает null если записей нет", async () => {
+			expect(await formatMemoryDigest(tmpDir, 5)).toBeNull();
 		});
 
-		it("формирует сводку с успехами и неудачами", () => {
-			appendEntry(tmpDir, {
+		it("формирует сводку с успехами и неудачами", async () => {
+			await appendEntry(tmpDir, {
 				...sampleEntry,
 				outcome: { status: "success", score: 0.8, note: "All good" },
 			});
-			appendEntry(tmpDir, {
+			await appendEntry(tmpDir, {
 				...sampleEntry,
 				outcome: { status: "failed", score: 0.2, note: "Broke" },
 			});
 
-			const digest = formatMemoryDigest(tmpDir, 5);
+			const digest = await formatMemoryDigest(tmpDir, 5);
 			expect(digest).not.toBeNull();
 			expect(digest!).toContain("[Evolution Memory]");
 			expect(digest!).toContain("1 success");
