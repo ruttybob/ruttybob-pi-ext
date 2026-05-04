@@ -1,5 +1,16 @@
+# Зависимости
 node_modules/
-.explore/
+
+# pi agent — локальные данные сессий
 .pi/
+
+# Планы и черновики агентов
 .plans/
+.scratch/
+
+# Evolution memory — локальная история evolver
+memory/
+
+# Временные директории
+.explore/
 .ralph/

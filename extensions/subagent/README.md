@@ -93,8 +93,32 @@ Use a chain: first have scout find the read tool, then have planner suggest impr
 | Mode | Parameter | Description |
 |------|-----------|-------------|
 | Single | `{ agent, task }` | One agent, one task |
-| Parallel | `{ tasks: [...] }` | Multiple agents run concurrently (max 8, 4 concurrent) |
+| Parallel | `{ tasks: [...] }` | Multiple agents run concurrently |
 | Chain | `{ chain: [...] }` | Sequential with `{previous}` placeholder |
+
+## Configuration
+
+Parallel mode is **disabled by default**. The tool schema dynamically adjusts based on your config — when disabled, the `tasks` parameter is completely absent from the schema, so the LLM never sees it.
+
+### Enable parallel mode
+
+Add to `~/.pi/agent/settings.json` (global) or `.pi/settings.json` (project):
+
+```json
+{
+  "subagent": {
+    "parallelEnabled": true,
+    "maxParallelTasks": 8,
+    "maxConcurrency": 4
+  }
+}
+```
+
+| Setting | Default | Max | Description |
+|---------|---------|-----|-------------|
+| `parallelEnabled` | `false` | — | Enable parallel mode (adds `tasks` to tool schema) |
+| `maxParallelTasks` | `8` | `32` | Maximum number of tasks in parallel call |
+| `maxConcurrency` | `4` | `32` | Maximum concurrent subprocesses |
 
 ## Output Display
 
@@ -169,4 +193,4 @@ Project agents override user agents with the same name when `agentScope: "both"`
 
 - Output truncated to last 10 items in collapsed view (expand to see all)
 - Agents discovered fresh on each invocation (allows editing mid-session)
-- Parallel mode limited to 8 tasks, 4 concurrent
+- Parallel mode configurable (default: disabled, max 32 tasks, 32 concurrent)

@@ -12,57 +12,31 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import { StringEnum } from "@mariozechner/pi-ai";
 import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { Type } from "typebox";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
-import { MAX_CONCURRENCY, MAX_PARALLEL_TASKS, runSingleAgent, mapWithConcurrencyLimit } from "./runner.js";
+import { type SubagentConfig, loadSubagentConfig } from "./config.js";
+import { buildSchema, buildDescription } from "./schema.js";
+import { runSingleAgent, mapWithConcurrencyLimit } from "./runner.js";
 import { renderCall, renderResult } from "./render.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
 import { getFinalOutput } from "./utils.js";
 
-const TaskItem = Type.Object({
-	agent: Type.String({ description: "Name of the agent to invoke" }),
-	task: Type.String({ description: "Task to delegate to the agent" }),
-	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
-});
-
-const ChainItem = Type.Object({
-	agent: Type.String({ description: "Name of the agent to invoke" }),
-	task: Type.String({ description: "Task with optional {previous} placeholder for prior output" }),
-	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
-});
-
-const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
-	description: 'Which agent directories to use. Default: "user". Use "both" to include project-local agents.',
-	default: "user",
-});
-
-const SubagentParams = Type.Object({
-	agent: Type.Optional(Type.String({ description: "Name of the agent to invoke (for single mode)" })),
-	task: Type.Optional(Type.String({ description: "Task to delegate (for single mode)" })),
-	tasks: Type.Optional(Type.Array(TaskItem, { description: "Array of {agent, task} for parallel execution" })),
-	chain: Type.Optional(Type.Array(ChainItem, { description: "Array of {agent, task} for sequential execution" })),
-	agentScope: Type.Optional(AgentScopeSchema),
-	confirmProjectAgents: Type.Optional(
-		Type.Boolean({ description: "Prompt before running project-local agents. Default: true.", default: true }),
-	),
-	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process (single mode)" })),
-});
-
 export default function (pi: ExtensionAPI) {
+	// Конфиг читается при загрузке — схема заморожена на всю сессию
+	const config = loadSubagentConfig(process.cwd());
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: [
-			"Delegate tasks to specialized subagents with isolated context.",
-			"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
-			'Default agent scope is "user" (from ~/.pi/agent/agents).',
-			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
-		].join(" "),
-		parameters: SubagentParams,
+		description: buildDescription(config),
+		parameters: buildSchema(config),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+			// Конфиг перечитывается при каждом вызове — hot-reload лимитов
+			const runtimeConfig = loadSubagentConfig(ctx.cwd);
+			const effectiveMaxTasks = runtimeConfig.maxParallelTasks;
+			const effectiveConcurrency = runtimeConfig.maxConcurrency;
+
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;
@@ -176,12 +150,25 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (params.tasks && params.tasks.length > 0) {
-				if (params.tasks.length > MAX_PARALLEL_TASKS)
+				if (!runtimeConfig.parallelEnabled) {
 					return {
 						content: [
 							{
 								type: "text",
-								text: `Too many parallel tasks (${params.tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
+								text: "Parallel mode is disabled in config. This should not happen — the tasks parameter is not in the tool schema. Use single mode or chain instead.",
+							},
+						],
+						details: makeDetails("parallel")([]),
+						isError: true,
+					};
+				}
+
+				if (params.tasks.length > effectiveMaxTasks)
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Too many parallel tasks (${params.tasks.length}). Max is ${effectiveMaxTasks}.`,
 							},
 						],
 						details: makeDetails("parallel")([]),
@@ -216,7 +203,7 @@ export default function (pi: ExtensionAPI) {
 					}
 				};
 
-				const results = await mapWithConcurrencyLimit(params.tasks, MAX_CONCURRENCY, async (t, index) => {
+				const results = await mapWithConcurrencyLimit(params.tasks, effectiveConcurrency, async (t, index) => {
 					const result = await runSingleAgent(
 						ctx.cwd,
 						agents,
