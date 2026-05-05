@@ -36,6 +36,7 @@
 	},
 	"scripts": {
 		"test": "vitest run",
+		"test:live": "vitest run --config vitest.config.live.ts",
 		"test:integration:side-agents": "node --test ../pi-side-agents/tests/integration/side-agents.integration.test.mjs"
 	}
 }
