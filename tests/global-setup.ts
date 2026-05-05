@@ -14,6 +14,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const JUNK_FILES = [
   "presets.json",
   "modes-state.json",
+  "profiles",
 ];
 
 export default function setup() {
