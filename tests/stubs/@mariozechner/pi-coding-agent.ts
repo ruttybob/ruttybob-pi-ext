@@ -76,6 +76,16 @@ export interface ExtensionCommandContext {
 
 export interface ExtensionContext {
 	config?: Record<string, unknown>;
+	cwd: string;
+	ui: {
+		notify(message: string, level?: string): void;
+		setStatus(key: string, status: string | undefined): void;
+		theme: { fg(color: string, text: string): string; bold(text: string): string };
+	};
+	sessionManager: {
+		getEntry(id: string): SessionEntry | undefined;
+		getAll(): Record<string, unknown>;
+	};
 	[key: string]: unknown;
 }
 
@@ -241,8 +251,15 @@ export const DEFAULT_MAX_LINES = 2000;
 export interface TruncateResult {
 	content: string;
 	truncated: boolean;
+	truncatedBy: "lines" | "bytes";
 	outputLines: number;
 	totalLines: number;
+	outputBytes: number;
+	totalBytes: number;
+	maxLines: number;
+	maxBytes: number;
+	lastLinePartial: boolean;
+	firstLineExceedsLimit: boolean;
 }
 
 export function withFileMutationQueue<T>(
@@ -252,15 +269,69 @@ export function withFileMutationQueue<T>(
 	return fn();
 }
 
+export function formatSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes}B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export function truncateHead(
 	text: string,
-	_options?: { maxLines?: number; maxBytes?: number },
+	options?: { maxLines?: number; maxBytes?: number },
 ): TruncateResult {
+	const maxLines = options?.maxLines ?? DEFAULT_MAX_LINES;
+	const maxBytes = options?.maxBytes ?? DEFAULT_MAX_BYTES;
 	const lines = text.split("\n");
+	const totalLines = lines.length;
+	const totalBytes = Buffer.byteLength(text, "utf8");
+
+	const truncated = totalLines > maxLines || totalBytes > maxBytes;
+	if (!truncated) {
+		return {
+			content: text,
+			truncated: false,
+			truncatedBy: "lines",
+			outputLines: totalLines,
+			totalLines,
+			outputBytes: totalBytes,
+			totalBytes,
+			maxLines,
+			maxBytes,
+			lastLinePartial: false,
+			firstLineExceedsLimit: false,
+		};
+	}
+
+	const truncatedBy = totalLines > maxLines ? "lines" : "bytes";
+
+	let outputLines: number;
+	let content: string;
+
+	if (truncatedBy === "lines") {
+		outputLines = maxLines;
+		content = lines.slice(0, outputLines).join("\n");
+	} else {
+		// Byte-based truncation: drop lines from the end until outputBytes <= maxBytes
+		outputLines = totalLines;
+		content = text;
+		while (outputLines > 1 && Buffer.byteLength(content, "utf8") > maxBytes) {
+			outputLines--;
+			content = lines.slice(0, outputLines).join("\n");
+		}
+	}
+	const outputBytes = Buffer.byteLength(content, "utf8");
+
 	return {
-		content: text,
-		truncated: false,
-		outputLines: lines.length,
-		totalLines: lines.length,
+		content,
+		truncated: true,
+		truncatedBy,
+		outputLines,
+		totalLines,
+		outputBytes,
+		totalBytes,
+		maxLines,
+		maxBytes,
+		lastLinePartial: false,
+		firstLineExceedsLimit: false,
 	};
 }

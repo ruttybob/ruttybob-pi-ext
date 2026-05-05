@@ -23,6 +23,8 @@ export default defineConfig({
 			"@modelcontextprotocol/sdk/client/streamableHttp.js": resolve(stubDir, "@modelcontextprotocol/sdk/client/streamableHttp.ts"),
 			"@modelcontextprotocol/sdk/client/stdio.js": resolve(stubDir, "@modelcontextprotocol/sdk/client/stdio.ts"),
 			"@juicesharp/rpiv-test-utils": resolve(stubDir, "@juicesharp/rpiv-test-utils.ts"),
+			"@tavily/core": resolve(stubDir, "@tavily/core.ts"),
+			"temporal-polyfill": resolve(stubDir, "temporal-polyfill.ts"),
 		},
 	},
 });
