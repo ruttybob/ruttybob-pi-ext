@@ -15,6 +15,7 @@ export function createMockExtensionAPI() {
 		registerCommand: [] as { name: string; options: any }[],
 		registerShortcut: [] as { shortcut: string; options: any }[],
 		registerFlag: [] as { name: string; options: any }[],
+		setWidget: [] as { id: string; factory: any; options?: any }[],
 		sendMessage: [] as any[],
 		sendUserMessage: [] as any[],
 		appendEntry: [] as any[],
@@ -29,6 +30,10 @@ export function createMockExtensionAPI() {
 
 	/** Internal state for getters that reflect recent mutations */
 	let currentThinkingLevel = "off";
+
+	/** State for tool management */
+	let allToolsList: any[] = [];
+	let activeToolsList: string[] = [];
 
 	/** EventEmitter-подобное хранилище обработчиков событий */
 	const eventHandlers = new Map<string, Function[]>();
@@ -58,6 +63,10 @@ export function createMockExtensionAPI() {
 
 		registerFlag(name: string, options: any) {
 			calls.registerFlag.push({ name, options });
+		},
+
+		setWidget(id: string, factory: any, options?: any) {
+			calls.setWidget.push({ id, factory, options });
 		},
 
 		registerMessageRenderer(_type: string, _renderer: any) {
@@ -90,9 +99,18 @@ export function createMockExtensionAPI() {
 			calls.setThinkingLevel.push(level);
 			currentThinkingLevel = level;
 		},
-		setActiveTools: (_names: string[]) => {},
-		getAllTools: () => [],
-		getActiveTools: () => [],
+		setActiveTools(names: string[]) {
+			calls.setActiveTools.push(names);
+			activeToolsList = [...names];
+		},
+		getAllTools() {
+			calls.getAllTools.push(undefined);
+			return allToolsList;
+		},
+		getActiveTools() {
+			calls.getActiveTools.push(undefined);
+			return [...activeToolsList];
+		},
 		getThinkingLevel: () => currentThinkingLevel,
 		getFlag: () => undefined,
 		events: {
@@ -131,6 +149,12 @@ export function createMockExtensionAPI() {
 				lastResult = await h(...args);
 			}
 			return lastResult;
+		},
+
+		/** Test helper: set available tools and activate all by default */
+		_setAllTools(tools: any[]) {
+			allToolsList = tools;
+			activeToolsList = tools.map(t => t.name);
 		},
 
 		/** Получить все bus-emit вызовы */
