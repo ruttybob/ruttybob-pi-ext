@@ -5,7 +5,7 @@
  * teardown: removes junk files that leak from runtime pi sessions
  *   when getAgentDir() resolves to CWD (empty PI_CODING_AGENT_DIR).
  */
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,7 +22,7 @@ export default function setup() {
     for (const file of JUNK_FILES) {
       const path = resolve(projectRoot, file);
       if (existsSync(path)) {
-        unlinkSync(path);
+        rmSync(path, { recursive: true, force: true });
       }
     }
   };
