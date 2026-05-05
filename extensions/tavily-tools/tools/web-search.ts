@@ -28,7 +28,7 @@ import { WebSearchParamsSchema } from "./tavily/schemas.js";
 
 export function registerWebSearchTool(pi: ExtensionAPI, client: TavilyClient): void {
   pi.registerTool({
-    name: "web_search",
+    name: "tavily_web_search",
     label: "Web Search",
     description:
       `Searches the web for current information using Tavily. ` +

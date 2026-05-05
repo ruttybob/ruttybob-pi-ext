@@ -80,12 +80,24 @@ export interface ExtensionContext {
 	ui: {
 		notify(message: string, level?: string): void;
 		setStatus(key: string, status: string | undefined): void;
+		setFooter(factory: any): void;
+		setEditorComponent(factory: any): void;
+		setWidget(key: string, factory: any, options?: Record<string, unknown>): void;
+		setHeader(factory: any): void;
 		theme: { fg(color: string, text: string): string; bold(text: string): string };
 	};
 	sessionManager: {
 		getEntry(id: string): SessionEntry | undefined;
 		getAll(): Record<string, unknown>;
+		getEntries(): any[];
 	};
+	model?: { provider: string; id: string; name?: string; reasoning?: string; contextWindow?: number } & Record<string, unknown>;
+	modelRegistry?: {
+		isUsingOAuth(model: any): boolean;
+		[key: string]: unknown;
+	};
+	getContextUsage(): { tokens: number; contextWindow: number; percent: number };
+	hasUI?: boolean;
 	[key: string]: unknown;
 }
 
@@ -114,10 +126,39 @@ export interface MessageRenderOptions {
 	[key: string]: unknown;
 }
 
+export type ThemeColor = string;
+
+export interface EditorTheme {
+	fg(color: string, text: string): string;
+	bold(text: string): string;
+	[key: string]: unknown;
+}
+
 export interface Theme {
 	fg(color: string, text: string): string;
 	bold(text: string): string;
 	[key: string]: unknown;
+}
+
+export class CustomEditor {
+	private _tui: any;
+	private _theme: any;
+	private _keybindings: any;
+	protected _text: string = '';
+
+	constructor(tui: any, theme: any, keybindings: any) {
+		this._tui = tui;
+		this._theme = theme;
+		this._keybindings = keybindings;
+	}
+
+	getText(): string { return this._text; }
+	setText(text: string) { this._text = text; }
+
+	render(width: number): string[] {
+		return [this._text || ''];
+	}
+	invalidate() {}
 }
 
 export interface ModelRegistry {

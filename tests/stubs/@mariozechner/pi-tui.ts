@@ -27,16 +27,22 @@ export function visibleWidth(s: string): number {
 	return [...s.replace(/\x1b\[[0-9;]*m/g, "")].length;
 }
 
-export function truncateToWidth(s: string, w: number): string {
+export function truncateToWidth(s: string, w: number, ellipsis?: string): string {
 	// Strip ANSI codes to measure visible width
 	const stripped = s.replace(/\x1b\[[0-9;]*m/g, "");
 	const chars = [...stripped];
 	if (chars.length > w) {
-		// Truncate and add ellipsis
-		const truncated = chars.slice(0, w - 1).join("") + "…";
-		return truncated;
+		const marker = ellipsis ?? "…";
+		const markerLen = [...marker].length;
+		if (markerLen > 0 && w > markerLen) {
+			const truncated = chars.slice(0, w - markerLen).join("") + marker;
+			return truncated;
+		}
+		return chars.slice(0, w).join("");
 	}
-	// Pad to width
+	// No padding when ellipsis arg is provided (caller handles layout)
+	if (ellipsis !== undefined) return stripped;
+	// Legacy behaviour: pad to width
 	return stripped.padEnd(w);
 }
 
@@ -114,6 +120,12 @@ export class TUI {
 }
 
 // --- Для pi-auto-rename ---
+
+export type EditorTheme = {
+	fg(color: string, text: string): string;
+	bold(text: string): string;
+	[key: string]: unknown;
+};
 
 export interface SelectItem {
 	value: string;

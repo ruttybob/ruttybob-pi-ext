@@ -88,7 +88,7 @@ describe("registerWebExtractTool", () => {
     const { api, getTool } = createMockAPI();
     registerWebExtractTool(api, createMockClient(mockResponse()));
     const tool = getTool();
-    expect(tool.name).toBe("web_extract");
+    expect(tool.name).toBe("tavily_web_extract");
   });
 
   test("registers tool with correct label", () => {

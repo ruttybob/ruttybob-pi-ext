@@ -109,7 +109,7 @@ describe.skip("web_extract integration tests (stubs - no real API)", () => {
       const webExtractTool = tools[0];
       if (!webExtractTool) throw new Error("Tool not registered");
 
-      expect(webExtractTool.name).toBe("web_extract");
+      expect(webExtractTool.name).toBe("tavily_web_extract");
       expect(webExtractTool.label).toBe("Web Extract");
       expect(webExtractTool.description).toContain("Tavily");
       expect(webExtractTool.description).toContain("2000 lines");

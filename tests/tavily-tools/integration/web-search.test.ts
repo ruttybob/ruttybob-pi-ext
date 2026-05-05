@@ -107,7 +107,7 @@ describe.skip("web_search integration tests (stubs - no real API)", () => {
       const webSearchTool = tools[0];
       if (!webSearchTool) throw new Error("Tool not registered");
 
-      expect(webSearchTool.name).toBe("web_search");
+      expect(webSearchTool.name).toBe("tavily_web_search");
       expect(webSearchTool.label).toBe("Web Search");
       expect(webSearchTool.description).toContain("Tavily");
       expect(webSearchTool.description).toContain("2000 lines");

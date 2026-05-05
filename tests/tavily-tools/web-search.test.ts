@@ -77,7 +77,7 @@ describe("registerWebSearchTool", () => {
     const { api, getTool } = createMockAPI();
     registerWebSearchTool(api, createMockClient(mockResponse()));
     const tool = getTool();
-    expect(tool.name).toBe("web_search");
+    expect(tool.name).toBe("tavily_web_search");
   });
 });
 

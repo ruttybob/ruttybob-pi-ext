@@ -28,7 +28,7 @@ type Theme = {
  * Render a web search tool call
  */
 export function renderWebSearchCall(args: Record<string, unknown>, theme: Theme): Text {
-  let text = theme.fg("toolTitle", theme.bold("web_search "));
+  let text = theme.fg("toolTitle", theme.bold("tavily_web_search "));
   const query = typeof args.query === "string" ? args.query : "(no query)";
   text += theme.fg("accent", `"${query}"`);
 
@@ -108,7 +108,7 @@ export function renderWebSearchResult(
  * Render a web extract tool call
  */
 export function renderExtractCall(args: Record<string, unknown>, theme: Theme): Text {
-  let text = theme.fg("toolTitle", theme.bold("web_extract "));
+  let text = theme.fg("toolTitle", theme.bold("tavily_web_extract "));
   const urls = Array.isArray(args.urls) ? args.urls : [];
   const urlCount = urls.length;
 

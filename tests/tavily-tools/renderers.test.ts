@@ -23,7 +23,7 @@ describe("renderWebSearchCall", () => {
 
     const result = renderWebSearchCall(args, mockTheme);
 
-    expect(getText(result)).toContain("toolTitle:**web_search **");
+    expect(getText(result)).toContain("toolTitle:**tavily_web_search **");
     expect(getText(result)).toContain('accent:"test query"');
   });
 

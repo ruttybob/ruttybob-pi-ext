@@ -29,7 +29,7 @@ import { WebExtractParamsSchema } from "./tavily/schemas.js";
 
 export function registerWebExtractTool(pi: ExtensionAPI, client: TavilyClient): void {
   pi.registerTool({
-    name: "web_extract",
+    name: "tavily_web_extract",
     label: "Web Extract",
     description:
       `Extracts raw content from one or more URLs using Tavily. ` +
