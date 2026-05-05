@@ -53,13 +53,15 @@ export type Context = CompletionOptions;
 /** Ответ от complete() с usage-статистикой */
 export type AssistantMessage = CompletionResponse;
 
+export interface UserMessage {
+	role: string;
+	content: string | TextContent[];
+	timestamp: number;
+}
+
 export interface CompletionOptions {
 	systemPrompt?: string;
-	messages: {
-		role: string;
-		content: string | TextContent[];
-		timestamp: number;
-	}[];
+	messages: UserMessage[];
 }
 
 export interface CompletionRequestOptions {

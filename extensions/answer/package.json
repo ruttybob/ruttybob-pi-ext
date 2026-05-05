@@ -1,0 +1,9 @@
+{
+  "name": "answer",
+  "version": "1.0.0",
+  "description": "Pi extension — extract questions from assistant responses into interactive Q&A",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

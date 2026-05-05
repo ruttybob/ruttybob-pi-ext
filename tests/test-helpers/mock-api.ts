@@ -8,6 +8,8 @@
  * не из настоящего API.
  */
 
+import { vi } from "vitest";
+
 export function createMockExtensionAPI() {
 	const calls = {
 		on: [] as { event: string; handler: Function }[],
@@ -173,4 +175,27 @@ export function createMockExtensionAPI() {
 	} as any;
 
 	return api;
+}
+
+/**
+ * Минимальный мок ExtensionContext для unit-тестов.
+ *
+ * Позволяет переопределять любые поля через partial override.
+ */
+export function createMockContext(overrides: Record<string, unknown> = {}): any {
+	const notify = vi.fn();
+	const defaults = {
+		hasUI: true,
+		ui: { notify, custom: vi.fn().mockResolvedValue(null) },
+		model: { provider: "test", id: "test-model" },
+		modelRegistry: {
+			find: vi.fn().mockReturnValue(null),
+			getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: "k" }),
+		},
+		sessionManager: {
+			getBranch: vi.fn().mockReturnValue([]),
+		},
+	};
+
+	return { ...defaults, ...overrides };
 }

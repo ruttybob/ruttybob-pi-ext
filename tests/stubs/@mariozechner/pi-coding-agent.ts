@@ -283,6 +283,15 @@ export class DefaultPackageManager {
 }
 export function defineTool() {}
 
+export class BorderedLoader {
+	private _controller = new AbortController();
+	constructor(_tui: any, _theme: any, _text?: string) {}
+	onAbort?: () => void;
+	signal: AbortSignal = this._controller.signal;
+	invalidate() {}
+	render(_width?: number): string[] { return []; }
+}
+
 export const VERSION = "0.0.0-stub";
 
 // --- truncateHead stub ---

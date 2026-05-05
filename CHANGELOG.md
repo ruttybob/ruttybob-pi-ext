@@ -13,6 +13,10 @@
 - **subagent**: имена доступных агентов в tool description для предотвращения галлюцинаций LLM
 - **subagent**: тест на Optional agent в TaskItem-схеме
 - `@types/node` добавлен в devDependencies
+- **answer**: расширение перенесено в `extensions/answer/` с конфигурируемой моделью extraction через settings.json
+- **answer**: `config.ts` — двухслойный конфиг (`~/.pi/agent/settings.json` → `<project>/.pi/settings.json`, ключ `"answer"`)
+- **answer**: 30 тестов (15 config + 15 handler)
+- `createMockContext()` хелпер в `tests/test-helpers/mock-api.ts`
 
 ### Changed
 

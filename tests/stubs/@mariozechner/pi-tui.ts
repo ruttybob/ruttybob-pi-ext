@@ -239,6 +239,20 @@ export interface SettingsListTheme {
 	hint: (text: string) => string;
 }
 
+export class Editor {
+	private text = "";
+	disableSubmit = false;
+	onChange?: () => void;
+	constructor(_tui: any, _theme?: any) {}
+	getText(): string { return this.text; }
+	setText(t: string) { this.text = t; }
+	handleInput(_data: string): void {}
+	render(_width?: number): string[] {
+		return ["┌" + "─".repeat(Math.max(0, (_width ?? 20) - 2)) + "┐", this.text, "└" + "─".repeat(Math.max(0, (_width ?? 20) - 2)) + "┘"];
+	}
+	invalidate() {}
+}
+
 export class SettingsList {
 	onChange: (id: string, newValue: string) => void;
 	onCancel: () => void;
