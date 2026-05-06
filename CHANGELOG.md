@@ -9,6 +9,7 @@
 - **ask-user-question**: новый extension — полный UI-фреймворк для question tool с fuzzy search, multi-select, inline custom input, bracketed paste, Kitty CSI-u; 66 файлов
 - **search-tools**: новый extension — web search (Brave, Tavily), web reader, vision, zread; конфигурация через settings.json, кэширование, rate limiting
 - **web-tools**: тесты для web-tools extension (extension в rpiv-mono)
+- **pi-quota**: tab-навигация через ←/→ + Tab; TabId тип, TABS-массив для циклического переключения
 
 ### Removed
 

@@ -8,7 +8,7 @@ Pi extension that displays your API quota usage as a centered TUI overlay with t
 /quota
 ```
 
-Shows an overlay with two tabs — switch with **Tab** key:
+Shows an overlay with two tabs — switch with **Tab** or **←/→** keys:
 
 ### ZAI tab
 - Current plan level
@@ -26,7 +26,8 @@ Shows an overlay with two tabs — switch with **Tab** key:
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Switch between ZAI / OpenRouter |
+| `Tab` / `→` | Next tab |
+| `←` | Previous tab |
 | `r` | Refresh active tab |
 | `q` / `Esc` | Close |
 

@@ -135,7 +135,7 @@ async function fetchZAI(apiKey: string): Promise<ZaiData> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  Shared section helpers (unified layout for both tabs)
+//  Shared section helpers (unified layout for all tabs)
 // ══════════════════════════════════════════════════════════════════════════
 
 /** Shared bar width — uses most of the terminal */
@@ -295,13 +295,21 @@ type LoadState<T> =
 	| { tag: "err"; msg: string }
 	| { tag: "nokey"; env: string };
 
+type TabId = "zai" | "or";
+
+/** Доступные вкладки в порядке переключения */
+const TABS: TabId[] = ["zai", "or"];
+
 class Dashboard {
-	private state: { or: LoadState<ORData>; zai: LoadState<ZaiData> };
+	private state: {
+		or: LoadState<ORData>;
+		zai: LoadState<ZaiData>;
+	};
 	private theme: Theme;
 	private onClose: () => void;
 	private cachedW?: number;
 	private cachedLines?: string[];
-	private tab: "zai" | "or" = "zai";
+	private tab: TabId = "zai";
 
 	constructor(theme: Theme, onClose: () => void) {
 		this.theme = theme;
@@ -316,7 +324,7 @@ class Dashboard {
 
 	setOR(state: LoadState<ORData>): void { this.state.or = state; this.invalidate(); }
 	setZAI(state: LoadState<ZaiData>): void { this.state.zai = state; this.invalidate(); }
-	get activeTab(): "zai" | "or" { return this.tab; }
+	get activeTab(): TabId { return this.tab; }
 
 	// ── input ────────────────────────────────────────────────────────
 
@@ -326,12 +334,14 @@ class Dashboard {
 			return;
 		}
 		if (matchesKey(data, "tab") || matchesKey(data, Key.right)) {
-			this.tab = this.tab === "zai" ? "or" : "zai";
+			const idx = TABS.indexOf(this.tab);
+			this.tab = TABS[(idx + 1) % TABS.length];
 			this.invalidate();
 			return;
 		}
 		if (matchesKey(data, Key.left)) {
-			this.tab = this.tab === "or" ? "zai" : "or";
+			const idx = TABS.indexOf(this.tab);
+			this.tab = TABS[(idx - 1 + TABS.length) % TABS.length];
 			this.invalidate();
 			return;
 		}
@@ -346,14 +356,12 @@ class Dashboard {
 		const lines: string[] = [];
 
 		// ── Tab-bar header ────────────────────────────────────────────
-		const zaiLabel = this.tab === "zai"
-			? th.fg("error", th.bold(" ZAI "))
-			: th.fg("dim", " ZAI ");
-		const orLabel = this.tab === "or"
-			? th.fg("error", th.bold(" OpenRouter "))
-			: th.fg("dim", " OpenRouter ");
+		const tabLabels: Record<TabId, string> = {
+			zai: this.tab === "zai" ? th.fg("error", th.bold(" ZAI ")) : th.fg("dim", " ZAI "),
+			or: this.tab === "or" ? th.fg("error", th.bold(" OpenRouter ")) : th.fg("dim", " OpenRouter "),
+		};
 		const sep = th.fg("error", "│");
-		const tabBar = ` ${zaiLabel} ${sep} ${orLabel} `;
+		const tabBar = ` ${tabLabels.zai} ${sep} ${tabLabels.or} `;
 		const tabBarRaw = " ZAI │ OpenRouter ";
 		const leftDash = Math.max(1, Math.floor((width - tabBarRaw.length) / 2));
 		const rightDash = Math.max(1, width - tabBarRaw.length - leftDash);
@@ -365,29 +373,7 @@ class Dashboard {
 		lines.push("");
 
 		// ── Active tab content ────────────────────────────────────────
-		if (this.tab === "zai") {
-			const zai = this.state.zai;
-			if (zai.tag === "loading") {
-				lines.push(th.fg("muted", "  ⏳ Fetching..."));
-			} else if (zai.tag === "nokey") {
-				lines.push(th.fg("error", `  ✗ ${zai.env} environment variable is not set`));
-			} else if (zai.tag === "err") {
-				lines.push(th.fg("error", `  ✗ ${zai.msg}`));
-			} else if (zai.tag === "ok") {
-				lines.push(...renderZAI(zai.data, th, width));
-			}
-		} else {
-			const or = this.state.or;
-			if (or.tag === "loading") {
-				lines.push(th.fg("muted", "  ⏳ Fetching..."));
-			} else if (or.tag === "nokey") {
-				lines.push(th.fg("error", `  ✗ ${or.env} environment variable is not set`));
-			} else if (or.tag === "err") {
-				lines.push(th.fg("error", `  ✗ ${or.msg}`));
-			} else if (or.tag === "ok") {
-				lines.push(...renderOpenRouter(or.data, th, width));
-			}
-		}
+		this.renderActiveTab(th, width, lines);
 
 		// Red bottom border + footer
 		lines.push("");
@@ -397,6 +383,28 @@ class Dashboard {
 		this.cachedW = width;
 		this.cachedLines = lines;
 		return lines;
+	}
+
+	/** Рендер содержимого активной вкладки */
+	private renderActiveTab(th: Theme, width: number, lines: string[]): void {
+		if (this.tab === "zai") {
+			this.renderLoadState(th, lines, this.state.zai, (data) => lines.push(...renderZAI(data, th, width)));
+		} else {
+			this.renderLoadState(th, lines, this.state.or, (data) => lines.push(...renderOpenRouter(data, th, width)));
+		}
+	}
+
+	/** Общий рендер для состояний loading/nokey/err/ok */
+	private renderLoadState<T>(th: Theme, lines: string[], state: LoadState<T>, renderOk: (data: T) => void): void {
+		if (state.tag === "loading") {
+			lines.push(th.fg("muted", "  ⏳ Fetching..."));
+		} else if (state.tag === "nokey") {
+			lines.push(th.fg("error", `  ✗ ${state.env} environment variable is not set`));
+		} else if (state.tag === "err") {
+			lines.push(th.fg("error", `  ✗ ${state.msg}`));
+		} else if (state.tag === "ok") {
+			renderOk(state.data);
+		}
 	}
 
 	invalidate(): void {
@@ -442,6 +450,7 @@ function loadZAI(dash: Dashboard, requestRender: () => void): () => void {
 // ══════════════════════════════════════════════════════════════════════════
 
 export default function (pi: ExtensionAPI) {
+	// ── Команда /quota ───────────────────────────────────────────────
 	pi.registerCommand("quota", {
 		description: "Show unified quota dashboard for OpenRouter and ZAI",
 		handler: async (_args: string, ctx: ExtensionCommandContext) => {
@@ -479,7 +488,7 @@ export default function (pi: ExtensionAPI) {
 
 				const dash = new Dashboard(theme, () => { closed = true; done(); });
 
-				// Load both tabs in parallel
+				// Загружаем все вкладки параллельно
 				const cancelOR = loadOpenRouter(dash, () => tui.requestRender());
 				const cancelZAI = loadZAI(dash, () => tui.requestRender());
 
@@ -488,7 +497,9 @@ export default function (pi: ExtensionAPI) {
 					invalidate: () => dash.invalidate(),
 					handleInput: (data: string) => {
 						if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c") || data === "q") {
-							cancelOR(); cancelZAI(); closed = true; done(); return;
+							cancelOR(); cancelZAI();
+							dash.handleInput(data); // вызывает onClose → done()
+							return;
 						}
 						if (matchesKey(data, "tab") || matchesKey(data, Key.left) || matchesKey(data, Key.right)) {
 							dash.handleInput(data);
@@ -501,7 +512,7 @@ export default function (pi: ExtensionAPI) {
 								dash.setZAI({ tag: "loading" });
 								tui.requestRender();
 								loadZAI(dash, () => tui.requestRender());
-							} else {
+							} else if (dash.activeTab === "or") {
 								dash.setOR({ tag: "loading" });
 								tui.requestRender();
 								loadOpenRouter(dash, () => tui.requestRender());

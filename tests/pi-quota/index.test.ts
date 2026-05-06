@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMockExtensionAPI } from "../test-helpers/mock-api.js";
+import { createMockExtensionAPI, createMockContext } from "../test-helpers/mock-api.js";
 
 describe("pi-quota", () => {
 	it("registers /quota command", async () => {
