@@ -1,9 +1,9 @@
 ---
-description: Parallel implementation — splits a detailed plan into independent tasks and runs multiple workers simultaneously
-argument-hint: "<path-to-detailed-plan.md>"
+description: Parallel implementation — split a detailed plan into independent tasks
+argument-hint: "<path-to-plan.md>"
 ---
 
-Read the detailed plan at `$@`, then partition its tasks into groups that can run in parallel:
+Your goal: '$@', then partition its tasks into groups that can run in parallel:
 
 - Tasks touching the **same files** go in one group (combine into a single sequential task description).
 - Tasks with **no file overlap and no dependencies** go in separate groups for parallel execution.

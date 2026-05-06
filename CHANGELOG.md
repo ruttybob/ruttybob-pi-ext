@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **subagent**: промпты переименованы с `implement.md` → `subagents_implement.md` (и аналогично для scout-and-plan, parallel-implement, implement-and-review)
+
 ### Removed
 
 - **pi-powerline**: CLI-флаги `--powerline`, `--breadcrumb`, `--footer` — настройки управляются через `/powerline` команду и `.pi/settings.json`
