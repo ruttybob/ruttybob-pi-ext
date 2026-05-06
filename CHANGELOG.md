@@ -27,6 +27,11 @@
 
 - **pi-goal**: расширение перенесено из отдельного репозитория `@ramarivera/pi-goal` в `extensions/pi-goal/` — persisted goals с hidden continuation pressure, token budget tracking, completion audit; 26 тестов, skill `goal`, stub для `pino`
 - **subagent**: промпт-шаблон `parallel-implement` для параллельной имплементации через worker-ов
+
+### Removed
+
+- Удалены устаревшие `.scratch/` PRD (codebase-modernize, mesh-inline-widget, mesh-overlay-v2/v3, mesh-tools-toggle, side-agents-decompose, subagent-decompose, toolignore-config, zai-tools-migration, zai-tools-toggle)
+- Удалены `docs/agents/` (domain.md, issue-tracker.md, triage-labels.md) — больше не используются
 - **subagent**: команды `/subagents:list` и `/subagents:spawn` — 15 тестов
 - **subagent**: имена доступных агентов в tool description для предотвращения галлюцинаций LLM
 - **subagent**: тест на Optional agent в TaskItem-схеме
