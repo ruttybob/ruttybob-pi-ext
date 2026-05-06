@@ -5,6 +5,7 @@
 ### Changed
 
 - **subagent**: промпты переименованы с `implement.md` → `subagents_implement.md` (и аналогично для scout-and-plan, parallel-implement, implement-and-review)
+- **pi-powerline**: новые модули — breadcrumb (git-путь), editor (vim-режим), footer (TUI-оверлей), settings (конфиг), widget (виджеты); 5 файлов + тесты
 
 ### Removed
 
