@@ -8,6 +8,7 @@
 - **pi-powerline**: новые модули — breadcrumb (git-путь), editor (vim-режим), footer (TUI-оверлей), settings (конфиг), widget (виджеты); 5 файлов + тесты
 - **ask-user-question**: новый extension — полный UI-фреймворк для question tool с fuzzy search, multi-select, inline custom input, bracketed paste, Kitty CSI-u; 66 файлов
 - **search-tools**: новый extension — web search (Brave, Tavily), web reader, vision, zread; конфигурация через settings.json, кэширование, rate limiting
+- **web-tools**: тесты для web-tools extension (extension в rpiv-mono)
 
 ### Removed
 
