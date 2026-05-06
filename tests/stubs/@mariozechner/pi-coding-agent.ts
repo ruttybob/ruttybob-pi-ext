@@ -196,6 +196,7 @@ export interface Message {
 
 export class DynamicBorder {
 	constructor(private _fn: (s: string) => string) {}
+	render(_width?: number): string[] { return []; }
 }
 
 // --- Заглушки runtime-функций ---

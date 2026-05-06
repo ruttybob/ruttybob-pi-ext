@@ -11,6 +11,7 @@
 - **web-tools**: тесты для web-tools extension (extension в rpiv-mono)
 - **pi-quota**: tab-навигация через ←/→ + Tab; TabId тип, TABS-массив для циклического переключения
 - **prompts**: обновлены commit, discuss, explain-codebase, explore, modernize-and-refactor, plan-detailed, plan; добавлены doc-scout, doc-write
+- Обновлены stubs: `pi-tui` (backspace, requestRender, Component), `typebox/value`, `rpiv-test-utils`, `rpiv-i18n`; алиасы в vitest.config.ts
 
 ### Removed
 

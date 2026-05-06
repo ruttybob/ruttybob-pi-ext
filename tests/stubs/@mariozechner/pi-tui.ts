@@ -16,18 +16,28 @@ export const Key = {
 	pageDown: "\x1b[6~",
 	backspace: "\x7f",
 	ctrl: (c: string) => String.fromCharCode(c.charCodeAt(0) - 96),
-	shift: (c: string) => c,
+	shift: (c: string) => {
+		if (c === "\t" || c === "tab") return "\x1b[Z"; // Shift+Tab
+		return c.toUpperCase();
+	},
 };
 
 export function matchesKey(data: string, key: string): boolean {
-	return data === key;
+	if (data === key) return true;
+	// Ctrl+<letter> → контрольный символ
+	const ctrlMatch = key.match(/^ctrl\+([a-z])$/i);
+	if (ctrlMatch) {
+		const ctrlChar = String.fromCharCode(ctrlMatch[1].toLowerCase().charCodeAt(0) - 96);
+		if (data === ctrlChar) return true;
+	}
+	return false;
 }
 
 export function visibleWidth(s: string): number {
 	return [...s.replace(/\x1b\[[0-9;]*m/g, "")].length;
 }
 
-export function truncateToWidth(s: string, w: number, ellipsis?: string): string {
+export function truncateToWidth(s: string, w: number, ellipsis?: string, pad?: boolean): string {
 	// Strip ANSI codes to measure visible width
 	const stripped = s.replace(/\x1b\[[0-9;]*m/g, "");
 	const chars = [...stripped];
@@ -40,8 +50,11 @@ export function truncateToWidth(s: string, w: number, ellipsis?: string): string
 		}
 		return chars.slice(0, w).join("");
 	}
-	// No padding when ellipsis arg is provided (caller handles layout)
-	if (ellipsis !== undefined) return stripped;
+	// When ellipsis is explicitly set (including empty string) AND pad is true, pad to width
+	if (ellipsis !== undefined) {
+		if (pad) return stripped.padEnd(w);
+		return stripped;
+	}
 	// Legacy behaviour: pad to width
 	return stripped.padEnd(w);
 }
@@ -142,7 +155,21 @@ export class Input {
 	focused = false;
 	getValue(): string { return this.value; }
 	setValue(v: string) { this.value = v; }
-	handleInput(_data: string): void {}
+	handleInput(data: string): void {
+		if (data === "\x7f" || data === "\b") {
+			// Backspace
+			this.value = this.value.slice(0, -1);
+		} else if (data === "\r" || data === "\n") {
+			// Enter — no-op for Input (submit handled by key-router)
+		} else if (data.startsWith("\x1b")) {
+			// Escape sequence — ignore
+		} else if (data === "\t") {
+			// Tab — ignore
+		} else {
+			// Printable character(s)
+			this.value += data;
+		}
+	}
 	invalidate() {}
 	render(_width?: number): string[] {
 		return [this.value || ""];
@@ -193,12 +220,13 @@ export class SelectList {
 }
 const KEYBINDING_MAP: Record<string, string[]> = {
 	"tui.select.confirm": ["\r"],
-	"tui.select.cancel": ["\x1b"],
+	"tui.select.cancel": ["\x1b", "\x03"],
 	"tui.select.up": ["\x1b[A"],
 	"tui.select.down": ["\x1b[B"],
 	"tui.select.pageUp": ["\x1b[5~"],
 	"tui.select.pageDown": ["\x1b[6~"],
 	"tui.input.submit": ["\r"],
+	"tui.editor.deleteCharBackward": ["\x7f"],
 };
 
 export function getKeybindings() {
@@ -210,8 +238,14 @@ export function getKeybindings() {
 	};
 }
 
-export function fuzzyFilter<T>(items: T[], _query: string, _getText: (item: T) => string): T[] {
-	return items;
+export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => string): T[] {
+	if (!query.trim()) return items;
+	const q = query.toLowerCase();
+	return items.filter((item) => {
+		const text = getText(item).toLowerCase();
+		// Простой substring-матч (без полноценного fuzzy)
+		return text.includes(q);
+	});
 }
 
 export interface SelectListTheme {
