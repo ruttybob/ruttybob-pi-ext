@@ -18,6 +18,7 @@
 - **answer**: `config.ts` — двухслойный конфиг (`~/.pi/agent/settings.json` → `<project>/.pi/settings.json`, ключ `"answer"`)
 - **answer**: 30 тестов (15 config + 15 handler)
 - `createMockContext()` хелпер в `tests/test-helpers/mock-api.ts`
+- **tools**: система групп инструментов — `groups.ts` (конфиг, glob-матчинг), `group-manager.ts` (TUI), команда `/tools <group>` для toggle, `/tools-group` для CRUD; 37 тестов
 
 ### Changed
 
