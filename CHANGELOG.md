@@ -15,6 +15,11 @@
 
 ### Removed
 
+- **tavily-tools**: расширение удалено — функционал перенесён в `search-tools`
+- **zai-tools**: расширение удалено — функционал перенесён в `search-tools`
+
+### Removed
+
 - **pi-powerline**: CLI-флаги `--powerline`, `--breadcrumb`, `--footer` — настройки управляются через `/powerline` команду и `.pi/settings.json`
 - **evolver**: расширение полностью удалено — extensions/evolver/, tests/evolver/, memory/evolution/
 
