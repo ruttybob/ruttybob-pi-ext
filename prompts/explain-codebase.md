@@ -1,5 +1,6 @@
 ---
-description: Explain codebase
+description: Explain data flow through a system area
+argument-hint: "<system-area>"
 ---
 Explain how the request flows through <name of the system area> in the codebase.
 

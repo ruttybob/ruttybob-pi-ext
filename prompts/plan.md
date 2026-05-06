@@ -1,11 +1,10 @@
 ---
-description: Написание плана по итогам обсуждения
-argument-hint: "<задача или ссылка на обсуждение>"
+description: Summary plan — architecture, steps, no code
+argument-hint: "<task-or-discussion-link>"
 ---
 
-# Plan Mode
 
-You are in plan mode. Your job is to produce a concrete markdown plan based on the task (and optionally prior discussion from `/discuss`). Do NOT implement anything.
+You need to produce a concrete markdown plan based on the task Do NOT implement anything.
 
 <goal>
 $@
@@ -43,7 +42,7 @@ If the task is code-related, include exact file paths, function signatures, and 
 
 Save the plan to:
 ```
-.plans/YYYY-MM-DD_HHMMSS-<slug>.md
+.plans/<slug>/YYYY-MM-DD_HHMMSS-<slug>.md
 ```
 
 Use `write` tool to create the file. After saving:

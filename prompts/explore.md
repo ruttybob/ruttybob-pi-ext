@@ -1,54 +1,37 @@
 ---
-description: Explore and explain code — trace logic, untangle architecture, document findings to .explore/
+description: Explore code — trace logic, untangle architecture, save to .explore/
 argument-hint: "<path-or-concept>"
 ---
 
-Your job is to deeply explore and explain a piece of code, a concept, a module, or an architectural pattern in the current codebase. The goal is understanding — not editing, not refactoring, not fixing — just making sense of things.
+Глубоко изучить и объяснить кусок кода, концепцию, модуль или архитектурный паттерн. Цель — понимание, не редактирование.
 
-**Target** — determine what to explore from `$@`:
-- File or directory path (e.g. `src/auth/`, `lib/parser.ts`): explore that area
-- Function/class/type name (e.g. `parseConfig`, `UserRepository`): find where it's defined and trace how it works
-- Concept (e.g. "how auth works", "error handling strategy", "data flow from API to UI"): find relevant code and explain the concept end-to-end
-- No argument: explore the current project's entry point and overall architecture
+**Цель** — определить объект исследования из `$@`:
+- Путь к файлу/директории — исследовать эту область
+- Имя функции/класса — найти определение и отследить работу
+- Концепция («как работает auth», «поток данных от API к UI») — найти релевантный код и объяснить end-to-end
+- Без аргумента — общая архитектура проекта
 
-**Phase 1: Locate.** Find the relevant code:
-- Use `grep`, `rg`, or file reads to locate definitions, usages, imports
-- For named targets: find the definition, then all call sites and references
-- For conceptual targets: identify all files and modules involved
-- Build a mental map of what reads what, what calls what, what depends on what
+**1. Локация.** Найти код: `grep`/`rg`, найти определения, вызовы, импорты. Построить карту зависимостей.
 
-**Phase 2: Read and trace.** Read the code thoroughly:
-- Read the target files in full, not just signatures — the interesting stuff is in the implementation
-- Trace the execution path: entry point → intermediate steps → side effects / outputs
-- Follow imports across files and directories — don't stop at file boundaries
-- Pay attention to types, interfaces, and contracts — they encode assumptions
-- Look for edge cases, error paths, and non-obvious branches
-- Check tests to understand expected behavior — tests are documentation
+**2. Чтение и трассировка.** Читать файлы целиком, не только сигнатуры. Отследить путь выполнения: вход → промежуточные шаги → результат. Проверить тесты — они документация.
 
-**Phase 3: Explain.** Produce a structured explanation:
-1. **Summary** — one-paragraph plain-language summary of what this thing does and why it exists. Write it so someone who has never seen this code could understand it.
-2. **How it works** — step-by-step walkthrough of the execution flow. Not line-by-line — focus on the meaningful stages. Include code snippets for key moments.
-3. **Data flow** — what goes in, what comes out, what gets transformed along the way. If there are intermediate representations or state changes, show them.
-4. **Dependencies and callers** — who calls this, what does this call, what external dependencies does it rely on. Show the dependency graph.
-5. **Design decisions** — why is it structured this way? What alternatives exist? What constraints shaped the current design? Infer from code structure if not documented.
-6. **Gotchas and non-obvious behavior** — things that would surprise a reader. Implicit contracts, ordering dependencies, side effects, things that look wrong but are intentional (and why).
-7. **Related areas** — what else in the codebase is connected to this that a reader should also look at.
+**3. Объяснение.** Структурированный отчёт:
+1. **Сводка** — один абзац: что это и зачем
+2. **Как работает** — пошаговый разбор с ключевыми сниппетами
+3. **Поток данных** — что входит, выходит, трансформируется
+4. **Зависимости** — кто вызывает, что вызывается, внешние зависимости
+5. **Решения по дизайну** — почему так, какие альтернативы
+6. **Подводные камни** — неочевидное, неявные контракты, побочные эффекты
+7. **Связанные области** — что ещё стоит посмотреть
 
-**Phase 4: Save findings.** Write the explanation to `.explore/` for future reference:
-- Create `.explore/` directory if it doesn't exist
-- Filename: derive from the target — e.g., `auth-flow.md`, `parser-architecture.md`, `config-parsing.md`
-- Use clean markdown with the same structure as Phase 3
-- Include a frontmatter header with the date and target: `<!-- explored: 2026-04-27 | target: src/auth/ -->`
-- If a file for this target already exists in `.explore/`, update it — don't create duplicates
-- Add `.explore/` to `.gitignore` if not already present (these are personal notes, not project artifacts)
-- After saving, open the file in a new Ghostty terminal for reading:
-  ```
-  open -a mods $file
-  ```
+**4. Сохранение.** Записать в `.explore/`:
+- Имя файла от цели: `auth-flow.md`, `parser-architecture.md`
+- Заголовок: `<!-- explored: YYYY-MM-DD | target: ... -->`
+- Если файл существует — обновить, не дублировать
+- Добавить `.explore/` в `.gitignore` если нет
+- Открыть файл: `open -a mods $file`
 
-**Depth over breadth.** If the target is large, go deep on the most important parts rather than shallow on everything. A thorough explanation of the core 20% is more valuable than a surface-level tour of 100%.
-
-**Answer follow-up questions.** After the initial explanation, invite the user to ask follow-up questions about anything that wasn't clear. This is a conversation, not a one-shot report.
+Глубина важнее ширины. Лучше глубоко разобрать ядро, чем поверхностно — всё.
 
 <goal>
 $@

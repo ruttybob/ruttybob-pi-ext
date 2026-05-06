@@ -1,9 +1,6 @@
 ---
-description: git commit prompt with changelog and tagging
+description: Commit with CHANGELOG update and semver tag
 ---
-<addition>
-`$@`
-</addition>
 
 Before every git commit:
 
@@ -18,4 +15,8 @@ Before every git commit:
    - Показать предполагаемую версию и **запросить подтверждение** через questionnaire
    - После подтверждения пользователя — создать аннотированный тег: `git tag -a v<version> -m "v<version>"`
    - Если пользователь отклонил — не создавать тег
-   
+ <addition>
+'$@'
+</addition>
+
+  

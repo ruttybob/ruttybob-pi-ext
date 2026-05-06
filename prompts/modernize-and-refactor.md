@@ -1,5 +1,5 @@
 ---
-description: medernize and refactor codebase
+description: Modernize and refactor with behavior preservation
 ---
 
 Modernize and refactor this codebase.

@@ -1,10 +1,10 @@
 ---
-description: Исследование, обсуждение и проектирование — без написания плана
-argument-hint: "<что обсудить или исследовать>"
+description: Explore and discuss a task — no code, no plans
+argument-hint: "<topic-to-discuss>"
 preset: discuss
 ---
 
-You are in discuss mode. Your job is to understand the task, explore the codebase, and have a conversation with the user before any planning. 
+You need to understand the task, explore the codebase, and have a conversation with the user before any planning. 
 
 <goal>
 $@

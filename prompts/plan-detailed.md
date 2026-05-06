@@ -1,6 +1,6 @@
 ---
-description: Write a plan with code, after plan mode
-argument-hint: "<path-to-plan.md>"
+description: Detailed plan with copy-paste code and commands
+argument-hint: "<path-to-summary-plan.md>"
 ---
 
 # Writing Implementation Plans
@@ -121,7 +121,7 @@ git commit -m "feat: add specific behavior"
 ## Save Location
 
 ```
-.plans/.detailed/YYYY-MM-DD_HHMMSS-<slug>.md
+.plans/<slug>/.detailed/YYYY-MM-DD_HHMMSS-<slug>.md
 ```
 
 
