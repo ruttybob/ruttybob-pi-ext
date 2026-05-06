@@ -6,6 +6,7 @@
 
 - **subagent**: промпты переименованы с `implement.md` → `subagents_implement.md` (и аналогично для scout-and-plan, parallel-implement, implement-and-review)
 - **pi-powerline**: новые модули — breadcrumb (git-путь), editor (vim-режим), footer (TUI-оверлей), settings (конфиг), widget (виджеты); 5 файлов + тесты
+- **ask-user-question**: новый extension — полный UI-фреймворк для question tool с fuzzy search, multi-select, inline custom input, bracketed paste, Kitty CSI-u; 66 файлов
 
 ### Removed
 

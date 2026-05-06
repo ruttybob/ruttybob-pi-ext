@@ -1,0 +1,9 @@
+{
+  "name": "ask-user-question",
+  "version": "1.0.0",
+  "description": "Pi extension — structured questionnaire tool with typed options",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
