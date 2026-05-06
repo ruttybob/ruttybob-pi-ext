@@ -28,6 +28,7 @@ export default defineConfig({
 			"@juicesharp/rpiv-i18n": resolve(stubDir, "@juicesharp/rpiv-i18n.ts"),
 			"@tavily/core": resolve(stubDir, "@tavily/core.ts"),
 			"temporal-polyfill": resolve(stubDir, "temporal-polyfill.ts"),
+			"pino": resolve(stubDir, "pino.ts"),
 		},
 	},
 });

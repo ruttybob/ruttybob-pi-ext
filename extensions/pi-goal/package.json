@@ -1,0 +1,12 @@
+{
+  "name": "pi-goal",
+  "version": "0.1.0",
+  "description": "Pi extension — persisted goals with hidden continuation pressure, token budget tracking, and completion audit",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {
+    "pino": "^10.3.1"
+  }
+}

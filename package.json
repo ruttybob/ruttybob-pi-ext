@@ -2,7 +2,7 @@
 	"name": "ruttybob",
 	"version": "0.1.0",
 	"type": "module",
-	"description": "Pi extensions: fork-to-back, pi-auto-rename, pi-powerline, pi-quota, soft-red-header, system-prompt-template",
+	"description": "Pi extensions: fork-to-back, pi-auto-rename, pi-goal, pi-powerline, pi-quota, soft-red-header, system-prompt-template",
 	"keywords": [
 		"pi-package"
 	],
@@ -19,7 +19,8 @@
 			"./skills",
 			"./extensions/system-prompt-template/skills",
 			"./extensions/pi-ralph-wiggum/skills",
-			"./extensions/side-agents/skills"
+			"./extensions/side-agents/skills",
+			"./extensions/pi-goal/skills"
 		]
 	},
 	"dependencies": {

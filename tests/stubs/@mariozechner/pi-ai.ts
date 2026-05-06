@@ -2,7 +2,7 @@
  * Stub-модуль для @mariozechner/pi-ai.
  */
 
-import { Type } from "@sinclair/typebox";
+export { Type } from "@sinclair/typebox";
 
 export interface Message {
 	role: string;
