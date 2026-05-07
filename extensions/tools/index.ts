@@ -59,9 +59,21 @@ export function restoreFromBranch(pi: ExtensionAPI, ctx: any): Set<string> {
 
 	const cwd = ctx.cwd ?? process.cwd();
 
+	// Инструменты из PI_TOOL_ALLOWLIST (переданы через --tools при запуске субагента)
+	// не должны деактивироваться disabled-паттернами
+	const allowlistEnv = process.env.PI_TOOL_ALLOWLIST?.trim();
+	const allowlist = allowlistEnv
+		? new Set(allowlistEnv.split(",").map((s) => s.trim()).filter(Boolean))
+		: null;
+
 	// Resolve disabled patterns from settings.json
 	const disabledPatterns = loadDisabledPatterns(cwd);
-	const disabledTools = resolveIgnoredTools(Array.from(allToolNames), disabledPatterns);
+	let disabledTools = resolveIgnoredTools(Array.from(allToolNames), disabledPatterns);
+
+	// Убираем из disabled те инструменты, что в allowlist
+	if (allowlist) {
+		disabledTools = new Set([...disabledTools].filter((name) => !allowlist.has(name)));
+	}
 
 	const branchEntries = ctx.sessionManager.getBranch();
 	let savedTools: string[] | undefined;

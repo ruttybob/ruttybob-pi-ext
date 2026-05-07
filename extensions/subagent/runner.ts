@@ -15,35 +15,7 @@ import type { AgentConfig } from "./agents.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
 import { getDisplayItems, getFinalOutput } from "./utils.js";
 
-// --- Константы вынесены в config.ts, но оставляем дефолты для обратной совместимости ---
-
-export const MAX_PARALLEL_TASKS = 8;
-export const MAX_CONCURRENCY = 4;
-
 // --- Вспомогательные функции ---
-
-/**
- * Concurrency-limited map: запускает fn параллельно с ограничением concurrency.
- */
-export async function mapWithConcurrencyLimit<TIn, TOut>(
-	items: TIn[],
-	concurrency: number,
-	fn: (item: TIn, index: number) => Promise<TOut>,
-): Promise<TOut[]> {
-	if (items.length === 0) return [];
-	const limit = Math.max(1, Math.min(concurrency, items.length));
-	const results: TOut[] = new Array(items.length);
-	let nextIndex = 0;
-	const workers = new Array(limit).fill(null).map(async () => {
-		while (true) {
-			const current = nextIndex++;
-			if (current >= items.length) return;
-			results[current] = await fn(items[current], current);
-		}
-	});
-	await Promise.all(workers);
-	return results;
-}
 
 /**
  * Записывает промпт во временный файл.
@@ -146,11 +118,19 @@ export async function runSingleAgent(
 		args.push(`Task: ${task}`);
 		let wasAborted = false;
 
+		// Передаём allowlist инструментов через env, чтобы расширение tools
+		// не деактивировало их при session_start
+		const spawnEnv = { ...process.env };
+		if (agent.tools && agent.tools.length > 0) {
+			spawnEnv.PI_TOOL_ALLOWLIST = agent.tools.join(",");
+		}
+
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
 			const proc = spawn(invocation.command, invocation.args, {
 				cwd: cwd ?? defaultCwd,
 				shell: false,
+				env: spawnEnv,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
 			let buffer = "";
