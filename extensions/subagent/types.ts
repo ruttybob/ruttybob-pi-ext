@@ -39,7 +39,7 @@ export interface SingleResult {
 // --- Детали ответа subagent tool ---
 
 export interface SubagentDetails {
-	mode: "single" | "parallel" | "chain";
+	mode: "single" | "chain";
 	agentScope: AgentScope;
 	projectAgentsDir: string | null;
 	results: SingleResult[];

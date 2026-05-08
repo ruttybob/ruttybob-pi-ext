@@ -6,7 +6,6 @@ Delegate tasks to specialized subagents with isolated context windows.
 
 - **Isolated context**: Each subagent runs in a separate `pi` process
 - **Streaming output**: See tool calls and progress as they happen
-- **Parallel streaming**: All parallel tasks stream updates simultaneously
 - **Markdown rendering**: Final output rendered with proper formatting (expanded view)
 - **Usage tracking**: Shows turns, tokens, cost, and context usage per agent
 - **Abort support**: Ctrl+C propagates to kill subagent processes
@@ -71,11 +70,6 @@ When running interactively, the tool prompts for confirmation before running pro
 Use scout to find all authentication code
 ```
 
-### Parallel execution
-```
-Run 2 scouts in parallel: one to find models, one to find providers
-```
-
 ### Chained workflow
 ```
 Use a chain: first have scout find the read tool, then have planner suggest improvements
@@ -93,37 +87,30 @@ Use a chain: first have scout find the read tool, then have planner suggest impr
 | Mode | Parameter | Description |
 |------|-----------|-------------|
 | Single | `{ agent, task }` | One agent, one task |
-| Parallel | `{ tasks: [...] }` | Multiple agents run concurrently |
 | Chain | `{ chain: [...] }` | Sequential with `{previous}` placeholder |
 
 ## Configuration
-
-Parallel mode is **disabled by default**. The tool schema dynamically adjusts based on your config — when disabled, the `tasks` parameter is completely absent from the schema, so the LLM never sees it.
-
-### Enable parallel mode
 
 Add to `~/.pi/agent/settings.json` (global) or `.pi/settings.json` (project):
 
 ```json
 {
   "subagent": {
-    "parallelEnabled": true,
-    "maxParallelTasks": 8,
-    "maxConcurrency": 4
+    "agentScope": "user",
+    "confirmProjectAgents": true
   }
 }
 ```
 
-| Setting | Default | Max | Description |
-|---------|---------|-----|-------------|
-| `parallelEnabled` | `false` | — | Enable parallel mode (adds `tasks` to tool schema) |
-| `maxParallelTasks` | `8` | `32` | Maximum number of tasks in parallel call |
-| `maxConcurrency` | `4` | `32` | Maximum concurrent subprocesses |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `agentScope` | `"user"` | Where to load agents from: `"user"`, `"project"`, or `"both"` |
+| `confirmProjectAgents` | `true` | Confirm before running project-local agents |
 
 ## Output Display
 
 **Collapsed view** (default):
-- Status icon (✓/✗/⏳) and agent name
+- Status icon (✓/✗) and agent name
 - Last 5-10 items (tool calls and text)
 - Usage stats: `3 turns ↑input ↓output RcacheRead WcacheWrite $cost ctx:contextTokens model`
 
@@ -131,12 +118,7 @@ Add to `~/.pi/agent/settings.json` (global) or `.pi/settings.json` (project):
 - Full task text
 - All tool calls with formatted arguments
 - Final output rendered as Markdown
-- Per-task usage (for chain/parallel)
-
-**Parallel mode streaming**:
-- Shows all tasks with live status (⏳ running, ✓ done, ✗ failed)
-- Updates as each task makes progress
-- Shows "2/3 done, 1 running" status
+- Per-task usage (for chain)
 
 **Tool call formatting** (mimics built-in tools):
 - `$ command` for bash
@@ -193,4 +175,3 @@ Project agents override user agents with the same name when `agentScope: "both"`
 
 - Output truncated to last 10 items in collapsed view (expand to see all)
 - Agents discovered fresh on each invocation (allows editing mid-session)
-- Parallel mode configurable (default: disabled, max 32 tasks, 32 concurrent)

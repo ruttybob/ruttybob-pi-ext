@@ -4,9 +4,8 @@
  * Spawns a separate `pi` process for each subagent invocation,
  * giving it an isolated context window.
  *
- * Supports three modes:
+ * Supports two modes:
  *   - Single: { agent: "name", task: "..." }
- *   - Parallel: { tasks: [{ agent: "name", task: "..." }, ...] }
  *   - Chain: { chain: [{ agent: "name", task: "... {previous} ..." }, ...] }
  *
  * Uses JSON mode to capture structured output from subagents.
@@ -15,9 +14,9 @@
 import { type ExtensionAPI, type ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
-import { type SubagentConfig, loadSubagentConfig } from "./config.js";
+import { loadSubagentConfig } from "./config.js";
 import { buildSchema, buildDescription } from "./schema.js";
-import { runSingleAgent, mapWithConcurrencyLimit } from "./runner.js";
+import { runSingleAgent } from "./runner.js";
 import { renderCall, renderResult } from "./render.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
 import { getFinalOutput } from "./utils.js";
@@ -114,14 +113,12 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: buildDescription(config, bootAgents),
-		parameters: buildSchema(config),
+		description: buildDescription(bootAgents),
+		parameters: buildSchema(),
 
 		async execute(_toolCallId: string, params: Record<string, any>, signal: AbortSignal, onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {
-			// Конфиг перечитывается при каждом вызове — hot-reload лимитов
+			// Конфиг перечитывается при каждом вызове — hot-reload
 			const runtimeConfig = loadSubagentConfig(ctx.cwd);
-			const effectiveMaxTasks = runtimeConfig.maxParallelTasks;
-			const effectiveConcurrency = runtimeConfig.maxConcurrency;
 
 			const agentScope: AgentScope = runtimeConfig.agentScope;
 			const discovery = discoverAgents(ctx.cwd, agentScope);
@@ -129,12 +126,11 @@ export default function (pi: ExtensionAPI) {
 			const confirmProjectAgents = runtimeConfig.confirmProjectAgents;
 
 			const hasChain = (params.chain?.length ?? 0) > 0;
-			const hasTasks = (params.tasks?.length ?? 0) > 0;
 			const hasSingle = Boolean(params.agent && params.task);
-			const modeCount = Number(hasChain) + Number(hasTasks) + Number(hasSingle);
+			const modeCount = Number(hasChain) + Number(hasSingle);
 
 			const makeDetails =
-				(mode: "single" | "parallel" | "chain") =>
+				(mode: "single" | "chain") =>
 				(results: SingleResult[]): SubagentDetails => ({
 					mode,
 					agentScope,
@@ -158,7 +154,6 @@ export default function (pi: ExtensionAPI) {
 			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && ctx.hasUI) {
 				const requestedAgentNames = new Set<string>();
 				if (params.chain) for (const step of params.chain) requestedAgentNames.add(step.agent);
-				if (params.tasks) for (const t of params.tasks) requestedAgentNames.add(t.agent);
 				if (params.agent) requestedAgentNames.add(params.agent);
 
 				const projectAgentsRequested = Array.from(requestedAgentNames)
@@ -175,7 +170,7 @@ export default function (pi: ExtensionAPI) {
 					if (!ok)
 						return {
 							content: [{ type: "text", text: "Canceled: project-local agents not approved." }],
-							details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+							details: makeDetails(hasChain ? "chain" : "single")([]),
 						};
 				}
 			}
@@ -232,107 +227,6 @@ export default function (pi: ExtensionAPI) {
 				return {
 					content: [{ type: "text", text: getFinalOutput(results[results.length - 1].messages) || "(no output)" }],
 					details: makeDetails("chain")(results),
-				};
-			}
-
-			if (params.tasks && params.tasks.length > 0) {
-				if (!runtimeConfig.parallelEnabled) {
-					return {
-						content: [
-							{
-								type: "text",
-								text: "Parallel mode is disabled in config. This should not happen — the tasks parameter is not in the tool schema. Use single mode or chain instead.",
-							},
-						],
-						details: makeDetails("parallel")([]),
-						isError: true,
-					};
-				}
-
-				if (params.tasks.length > effectiveMaxTasks)
-					return {
-						content: [
-							{
-								type: "text",
-								text: `Too many parallel tasks (${params.tasks.length}). Max is ${effectiveMaxTasks}.`,
-							},
-						],
-						details: makeDetails("parallel")([]),
-					};
-
-				// Resolve agent names: per-task agent or fallback to top-level agent
-				const defaultAgent = params.agent || "worker";
-				const resolvedTasks = (params.tasks as { agent?: string; task: string; cwd?: string }[]).map((t) => ({
-					...t,
-					agent: t.agent || defaultAgent,
-				}));
-
-				// Track all results for streaming updates
-				const allResults: SingleResult[] = new Array(resolvedTasks.length);
-
-				// Initialize placeholder results
-				for (let i = 0; i < resolvedTasks.length; i++) {
-					allResults[i] = {
-						agent: resolvedTasks[i].agent,
-						agentSource: "unknown",
-						task: resolvedTasks[i].task,
-						exitCode: -1, // -1 = still running
-						messages: [],
-						stderr: "",
-						usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
-					};
-				}
-
-				const emitParallelUpdate = () => {
-					if (onUpdate) {
-						const running = allResults.filter((r) => r.exitCode === -1).length;
-						const done = allResults.filter((r) => r.exitCode !== -1).length;
-						onUpdate({
-							content: [
-								{ type: "text", text: `Parallel: ${done}/${allResults.length} done, ${running} running...` },
-							],
-							details: makeDetails("parallel")([...allResults]),
-						});
-					}
-				};
-
-				const results = await mapWithConcurrencyLimit(resolvedTasks, effectiveConcurrency, async (t, index) => {
-					const result = await runSingleAgent(
-						ctx.cwd,
-						agents,
-						t.agent,
-						t.task,
-						t.cwd,
-						undefined,
-						signal,
-						// Per-task update callback
-						(partial) => {
-							if (partial.details?.results[0]) {
-								allResults[index] = partial.details.results[0];
-								emitParallelUpdate();
-							}
-						},
-						makeDetails("parallel"),
-					);
-					allResults[index] = result;
-					emitParallelUpdate();
-					return result;
-				});
-
-				const successCount = results.filter((r) => r.exitCode === 0).length;
-				const summaries = results.map((r) => {
-					const output = getFinalOutput(r.messages) || r.stderr;
-					const preview = output.slice(0, 200) + (output.length > 200 ? "..." : "");
-					return `[${r.agent}] ${r.exitCode === 0 ? "completed" : "failed"}: ${preview || "(no output)"}`;
-				});
-				return {
-					content: [
-						{
-							type: "text",
-							text: `Parallel: ${successCount}/${results.length} succeeded\n\n${summaries.join("\n\n")}`,
-						},
-					],
-					details: makeDetails("parallel")(results),
 				};
 			}
 

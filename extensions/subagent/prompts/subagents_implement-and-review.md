@@ -1,5 +1,5 @@
 ---
-description: Chain: implement → review → apply feedback
+description: implement → review → apply feedback
 ---
 Use the subagent tool with the chain parameter to execute this workflow:
 

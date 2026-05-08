@@ -15,12 +15,6 @@ import type { AgentScope } from "./agents.js";
 // --- Интерфейс конфига ---
 
 export interface SubagentConfig {
-	/** Разрешён ли parallel mode (tasks[]). Default: false */
-	parallelEnabled: boolean;
-	/** Максимальное число parallel tasks. Default: 8 */
-	maxParallelTasks: number;
-	/** Максимальная параллельность (concurrency limiter). Default: 4 */
-	maxConcurrency: number;
 	/** Откуда подгружать агентов. Default: "user" */
 	agentScope: AgentScope;
 	/** Подтверждать запуск project-агентов через UI. Default: true */
@@ -30,9 +24,6 @@ export interface SubagentConfig {
 // --- Дефолты ---
 
 export const DEFAULT_CONFIG: SubagentConfig = {
-	parallelEnabled: false,
-	maxParallelTasks: 8,
-	maxConcurrency: 4,
 	agentScope: "user",
 	confirmProjectAgents: true,
 };
@@ -72,15 +63,6 @@ function extractRaw(settings: Record<string, unknown> | null): Record<string, un
 function buildConfig(raw: Record<string, unknown>): SubagentConfig {
 	const validScopes = new Set<string>(["user", "project", "both"]);
 	return {
-		parallelEnabled: raw.parallelEnabled === true,
-		maxParallelTasks:
-			typeof raw.maxParallelTasks === "number" && raw.maxParallelTasks > 0
-				? Math.min(raw.maxParallelTasks, 32)
-				: DEFAULT_CONFIG.maxParallelTasks,
-		maxConcurrency:
-			typeof raw.maxConcurrency === "number" && raw.maxConcurrency > 0
-				? Math.min(raw.maxConcurrency, 32)
-				: DEFAULT_CONFIG.maxConcurrency,
 		agentScope: typeof raw.agentScope === "string" && validScopes.has(raw.agentScope)
 			? raw.agentScope as AgentScope
 			: DEFAULT_CONFIG.agentScope,
