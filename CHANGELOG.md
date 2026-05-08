@@ -8,6 +8,10 @@
 
 ### Added
 
+- **git-commit**: обязательное обновление CHANGELOG.md перед каждым коммитом + предложение version tag (patch/minor/major)
+
+### Added
+
 - **advisor**: расширение для стратегии «спросить старшую модель» — tool, команда `/advisor`, lifecycle hooks (session_start restore, before_agent_start strip); конфиг через `~/.config/rpiv-advisor/advisor.json`
 
 ### Changed
