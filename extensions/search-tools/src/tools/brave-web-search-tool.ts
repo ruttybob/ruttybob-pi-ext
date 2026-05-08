@@ -5,6 +5,7 @@
  */
 
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
+import { Text } from '@mariozechner/pi-tui';
 import { Type } from '@sinclair/typebox';
 import type { BraveSearchResult } from '../services/brave-search.js';
 import { searchBrave } from '../services/brave-search.js';
@@ -86,7 +87,7 @@ export function createBraveWebSearchTool(apiKey: string, onInvoke?: () => void) 
 		renderCall(args: { query: string }, theme: any, _context: any) {
 			let text = theme.fg('toolTitle', theme.bold('BraveWebSearch '));
 			text += theme.fg('accent', `"${args.query}"`);
-			return { text, x: 0, y: 0 };
+			return new Text(text, 0, 0);
 		},
 
 		renderResult(
@@ -96,7 +97,7 @@ export function createBraveWebSearchTool(apiKey: string, onInvoke?: () => void) 
 			_context: any,
 		) {
 			if (isPartial) {
-				return { text: theme.fg('warning', 'Searching...'), x: 0, y: 0 };
+				return new Text(theme.fg('warning', 'Searching...'), 0, 0);
 			}
 			const details = result.details;
 			const count = details?.resultCount ?? 0;
@@ -109,7 +110,7 @@ export function createBraveWebSearchTool(apiKey: string, onInvoke?: () => void) 
 					text += `\n  ${theme.fg('dim', `... and ${details.results.length - 5} more`)}`;
 				}
 			}
-			return { text, x: 0, y: 0 };
+			return new Text(text, 0, 0);
 		},
 	};
 }

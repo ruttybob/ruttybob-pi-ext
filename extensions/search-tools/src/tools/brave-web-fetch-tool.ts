@@ -8,6 +8,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
+import { Text } from '@mariozechner/pi-tui';
 import { Type } from '@sinclair/typebox';
 import {
 	DEFAULT_MAX_BYTES,
@@ -164,7 +165,7 @@ export function createBraveWebFetchTool(onInvoke?: () => void) {
 		renderCall(args: { url: string }, theme: any, _context: any) {
 			let text = theme.fg('toolTitle', theme.bold('BraveWebFetch '));
 			text += theme.fg('accent', args.url);
-			return { text, x: 0, y: 0 };
+			return new Text(text, 0, 0);
 		},
 
 		renderResult(
@@ -174,7 +175,7 @@ export function createBraveWebFetchTool(onInvoke?: () => void) {
 			_context: any,
 		) {
 			if (isPartial) {
-				return { text: theme.fg('warning', 'Fetching...'), x: 0, y: 0 };
+				return new Text(theme.fg('warning', 'Fetching...'), 0, 0);
 			}
 			const details = result.details;
 			let text = theme.fg('success', '✓ Fetched');
@@ -196,7 +197,7 @@ export function createBraveWebFetchTool(onInvoke?: () => void) {
 					}
 				}
 			}
-			return { text, x: 0, y: 0 };
+			return new Text(text, 0, 0);
 		},
 	};
 }
