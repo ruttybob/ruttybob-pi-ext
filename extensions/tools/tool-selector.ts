@@ -186,12 +186,22 @@ export class ToolSelector {
 	// -----------------------------------------------------------------------
 
 	private filterItems(query: string): void {
+		const prevName = this.filteredItems[this.selectedIndex]?.name;
+
 		if (!query.trim()) {
 			this.filteredItems = [...this.tools];
 		} else {
 			this.filteredItems = fuzzyFilter(this.tools, query, (item) => item.name);
 		}
-		// Сбросить курсор на первый элемент
+
+		// Восстановить позицию по имени, если элемент ещё в списке
+		if (prevName) {
+			const idx = this.filteredItems.findIndex((item) => item.name === prevName);
+			if (idx >= 0) {
+				this.selectedIndex = idx;
+				return;
+			}
+		}
 		this.selectedIndex = 0;
 	}
 

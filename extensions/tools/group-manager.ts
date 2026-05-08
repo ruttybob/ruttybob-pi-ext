@@ -257,10 +257,21 @@ export class GroupManager {
 	// -----------------------------------------------------------------------
 
 	private filterItems(query: string): void {
+		const prevName = this.filteredItems[this.selectedIndex]?.name;
+
 		if (!query.trim()) {
 			this.filteredItems = [...this.groups];
 		} else {
 			this.filteredItems = fuzzyFilter(this.groups, query, (item) => item.name);
+		}
+
+		// Восстановить позицию по имени, если элемент ещё в списке
+		if (prevName) {
+			const idx = this.filteredItems.findIndex((item) => item.name === prevName);
+			if (idx >= 0) {
+				this.selectedIndex = idx;
+				return;
+			}
 		}
 		this.selectedIndex = 0;
 	}

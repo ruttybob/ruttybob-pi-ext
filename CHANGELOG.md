@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **tools**: курсор в /tools и /tools-group больше не прыгает на первый пункт после toggle инструмента/группы
+
 ### Added
 
 - **advisor**: расширение для стратегии «спросить старшую модель» — tool, команда `/advisor`, lifecycle hooks (session_start restore, before_agent_start strip); конфиг через `~/.config/rpiv-advisor/advisor.json`

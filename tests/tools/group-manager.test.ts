@@ -235,7 +235,24 @@ describe("GroupManager updateGroups", () => {
 		expect(lines.find((l) => l.includes("brave"))).toBeUndefined();
 	});
 
-	it("сбрасывает курсор при обновлении", () => {
+	it("сохраняет курсор на текущей группе после updateGroups", () => {
+		const { manager } = createManager(sampleGroups);
+		// После сортировки: brave=0, mesh=1, zai=2
+		manager.handleInput(KEY.down); // → mesh
+		manager.handleInput(KEY.down); // → zai
+
+		manager.updateGroups([
+			{ ...sampleGroups[0] }, // brave
+			{ ...sampleGroups[1] }, // mesh
+			{ ...sampleGroups[2] }, // zai
+		]);
+
+		const lines = manager.render(80);
+		// Курсор всё ещё на zai
+		expect(lines.find((l) => l.includes("zai") && l.includes("> "))).toBeDefined();
+	});
+
+	it("сбрасывает курсор при обновлении, если текущий элемент удалён", () => {
 		const { manager } = createManager(sampleGroups);
 		manager.handleInput(KEY.down); // mesh
 		manager.updateGroups([

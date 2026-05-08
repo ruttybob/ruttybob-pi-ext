@@ -323,6 +323,68 @@ describe("ToolSelector search", () => {
 		expect(lines.find((l) => l.includes("bash"))).toBeDefined();
 	});
 
+	it("сохраняет позицию курсора после toggle (space)", () => {
+		const { selector, onToggle } = createSelector([
+			{ name: "bash", enabled: true },
+			{ name: "read", enabled: true },
+			{ name: "edit", enabled: true },
+		]);
+
+		// После сортировки: bash=0, edit=1, read=2. Перемещаем курсор на read
+		selector.handleInput(KEY.down); // → edit
+		selector.handleInput(KEY.down); // → read
+
+		let lines = selector.render(60);
+		expect(lines.find((l) => l.includes("read") && l.includes("> "))).toBeDefined();
+
+		// Toggle read
+		selector.handleInput(KEY.space);
+		expect(onToggle).toHaveBeenCalledWith("read", false);
+
+		// Курсор всё ещё на read
+		lines = selector.render(60);
+		expect(lines.find((l) => l.includes("read") && l.includes("> "))).toBeDefined();
+		expect(lines.find((l) => l.includes("bash") && l.includes("> "))).toBeUndefined();
+	});
+
+	it("сохраняет позицию курсора после toggle (enter)", () => {
+		const { selector, onToggle } = createSelector([
+			{ name: "bash", enabled: true },
+			{ name: "read", enabled: true },
+		]);
+
+		// После сортировки: bash=0, read=1. Перемещаем на read
+		selector.handleInput(KEY.down);
+
+		selector.handleInput(KEY.enter);
+		expect(onToggle).toHaveBeenCalledWith("read", false);
+
+		const lines = selector.render(60);
+		expect(lines.find((l) => l.includes("read") && l.includes("> "))).toBeDefined();
+	});
+
+	it("восстанавливает позицию курсора после search + backspace", () => {
+		const { selector } = createSelector([
+			{ name: "bash", enabled: true },
+			{ name: "read", enabled: true },
+			{ name: "edit", enabled: true },
+		]);
+
+		// Перемещаем курсор на read (индекс 2 после сортировки)
+		selector.handleInput(KEY.down); // → edit
+		selector.handleInput(KEY.down); // → read
+
+		// Вводим поиск
+		selector.handleInput("r");
+		let lines = selector.render(60);
+		expect(lines.find((l) => l.includes("read") && l.includes("> "))).toBeDefined();
+
+		// Стираем поиск — read всё ещё выбран
+		selector.handleInput("\x7f");
+		lines = selector.render(60);
+		expect(lines.find((l) => l.includes("read") && l.includes("> "))).toBeDefined();
+	});
+
 	it("сбрасывает курсор на первый элемент при фильтрации", () => {
 		const { selector } = createSelector([
 			{ name: "bash", enabled: true },
