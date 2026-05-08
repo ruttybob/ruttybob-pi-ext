@@ -13,7 +13,8 @@
 			"./extensions"
 		],
 		"prompts": [
-			"./prompts"
+			"./prompts",
+			"./extensions/subagent/prompts"
 		],
 		"skills": [
 			"./skills",

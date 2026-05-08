@@ -7,7 +7,7 @@ node_modules/
 # Планы и черновики агентов
 .plans/
 .scratch/
-
+.issues/
 # Evolution memory — локальная история evolver
 memory/
 
