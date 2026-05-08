@@ -4,7 +4,6 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
   readPowerlineSettings,
   writePowerlineSetting,
-  writePowerlineSettings,
 } from '../../extensions/pi-powerline/settings.js';
 
 const TMP_DIR = join('/tmp', 'pi-powerline-settings-test', String(Date.now()));
@@ -73,12 +72,3 @@ describe('settings — writePowerlineSetting', () => {
   });
 });
 
-describe('settings — writePowerlineSettings (batch)', () => {
-  it('writes multiple keys at once', () => {
-    writeFileSync(join(TMP_DIR, '.pi', 'settings.json'), '{}');
-    writePowerlineSettings(TMP_DIR, { powerline: false, footer: false });
-    const s = readPowerlineSettings(TMP_DIR);
-    expect(s.powerline).toBe(false);
-    expect(s.footer).toBe(false);
-  });
-});
