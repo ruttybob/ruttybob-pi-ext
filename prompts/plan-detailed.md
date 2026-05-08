@@ -44,6 +44,7 @@ Every step is ONE action:
 ````markdown
 # [Feature] Implementation Plan
 
+**Статус:** ⏳ Не реализовано
 **Goal:** [One sentence]
 **Architecture:** [2-3 sentences about approach]
 **Tech Stack:** [Key technologies]
@@ -126,10 +127,13 @@ git commit -m "feat: add specific behavior"
 
 
 After saving:
-1. Use bash tool and Open the file in a mods app for reading:
+1. Move the source summary plan to `_done` — it's superseded by the detailed plan:
+   ```bash
+   mv .plans/<slug>/<original-summary-plan>.md .plans/_done/<original-summary-plan>.md
+   ```
+2. Open the detailed plan for reading:
    ```
    open -a mods <plan>
-
    ```
-2. Tell the user:
-   > "Detailed plan saved to `.plans/.detailed/...`. Ready to execute task-by-task. Use /handoff command to implement"
+3. Tell the user:
+   > "Detailed plan saved to `.plans/.detailed/...`. Summary plan archived to `.plans/_done/`. Ready to execute task-by-task. Use /handoff command to implement"

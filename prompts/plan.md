@@ -20,6 +20,7 @@ $@
 
 ## What to Include
 
+- **Статус** — первая строка плана: `**Статус:** ⏳ Не реализовано`
 - **Goal** — one sentence
 - **Context** — what exists now, constraints, assumptions
 - **Approach** — architecture decision and rationale

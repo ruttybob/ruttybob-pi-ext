@@ -23,6 +23,7 @@ $@
 - Read files fully, not just signatures
 - Don't write documentation yet — just report findings
 - If the area is large, focus on the core 20% and note what's secondary
+- **Always write the final report to a file** (e.g. `.scratch/doc-scout-<target>.md`). Do not only output to chat — the file must be created.
 - Output a structured summary the user can review before running `/doc-write`
 
 ## Output format

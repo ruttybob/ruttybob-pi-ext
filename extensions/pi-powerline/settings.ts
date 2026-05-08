@@ -55,11 +55,3 @@ export function writePowerlineSetting(
   writeSettings(cwd, s);
 }
 
-/** Write multiple powerline settings at once, preserving other keys. */
-export function writePowerlineSettings(cwd: string, patch: Partial<PowerlineSettings>): void {
-  const s = readSettings(cwd);
-  for (const [k, v] of Object.entries(patch)) {
-    s[k] = v;
-  }
-  writeSettings(cwd, s);
-}

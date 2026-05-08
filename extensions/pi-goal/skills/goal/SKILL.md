@@ -1,6 +1,7 @@
 ---
 name: goal
 description: Helps you use the /goal persisted-goal workflow effectively. Use when you want the agent to pursue a multi-step objective autonomously across turns, with budget control and completion verification.
+disable-model-invocation: true
 ---
 
 # Goal
