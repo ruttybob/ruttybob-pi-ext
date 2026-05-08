@@ -1,0 +1,9 @@
+{
+  "name": "advisor",
+  "version": "1.0.0",
+  "description": "Pi extension — advisor strategy: consult a stronger reviewer model before acting",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

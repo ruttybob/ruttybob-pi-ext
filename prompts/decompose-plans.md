@@ -1,85 +1,86 @@
 ---
-description: "Декомпозиция плана в гранулярные задачи .issues/"
+description: "Decompose a plan into granular issues in .issues/"
 argument-hint: "<path-to-plan.md>"
 ---
 
-Прочитай план (summary или detailed), выдели из него каждую отдельную задачу и создай для неё файл в `.issues/`.
+Read the plan (summary or detailed), extract each individual task, and create a file for it in `.issues/`.
 
 <goal>
 $@
 </goal>
 
-## Что делать
+## What to Do
 
-1. Прочитай план целиком
-2. Для каждого Task из плана создай отдельный issue-файл
-3. Если plan — summary (без copy-paste кода), погрузись в кодовую базу чтобы уточнить файлы и контекст для каждой задачи
-4. Создай директорию `.issues/<plan-slug>/` если её нет
+1. Read the plan in full
+2. **If there are open questions** — use the `questionnaire` tool to clarify with the user before creating issue files. Do not create tasks with ambiguities.
+3. For each Task in the plan, create a separate issue file
+4. If the plan is a summary (no copy-paste code), dive into the codebase to clarify files and context for each task
+5. Create the `.issues/<plan-slug>/` directory if it doesn't exist
 
-## Формат issue
+## Issue Format
 
-Каждая задача — один файл: `.issues/<plan-slug>/NNN-<task-slug>.md`
+Each task is one file: `.issues/<plan-slug>/NNN-<task-slug>.md`
 
 ```markdown
-# <Название задачи>
+# <Task Title>
 
-**Статус:** ⏳ Не начата
-**План:** <путь к исходному плану>
-**Зависимости:** NNN (если задача зависит от другой)
+**Status:** ⏳ Not started
+**Plan:** <path to source plan>
+**Dependencies:** NNN (if this task depends on another)
 
-## Цель
+## Objective
 
-<1-2 предложения — что делает эта задача>
+<1-2 sentences — what this task accomplishes>
 
-## Файлы
+## Files
 
-- Создать: `path/to/new_file.ts`
-- Изменить: `path/to/existing.ts`
-- Тесты: `tests/path/test.ts`
+- Create: `path/to/new_file.ts`
+- Modify: `path/to/existing.ts`
+- Tests: `tests/path/test.ts`
 
-## Шаги
+## Steps
 
-1. <конкретный шаг>
-2. <конкретный шаг>
+1. <concrete step>
+2. <concrete step>
 3. ...
 
-## Проверка
+## Verification
 
-- [ ] <критерий готовности>
-- [ ] <критерий готовности>
+- [ ] <completion criterion>
+- [ ] <completion criterion>
 
-## Результат
+## Result
 
-По завершении перенеси этот issue в `.issues/_done/`:
+When done, move this issue to `.issues/_done/`:
 ```bash
 mv .issues/<plan-slug>/NNN-<task-slug>.md .issues/_done/NNN-<task-slug>.md
 ```
 ```
 
-## Нумерация
+## Numbering
 
-- `NNN` — трёхзначный порядковый номер: `001`, `002`, `003`...
-- Нумерация сквозная в рамках одного плана
-- Порядок соответствует порядку задач в плане
+- `NNN` — three-digit sequential number: `001`, `002`, `003`...
+- Numbering is continuous within a single plan
+- Order matches the order of tasks in the plan
 
-## Правила
+## Rules
 
-- Одна задача = один issue-файл
-- Задача должна быть самодостаточной — исполнитель понимает что делать без чтения плана
-- Указывай точные пути файлов, конкретные шаги, проверяемые критерии
-- Если задачи зависят друг от друга — укажи номер зависимости в поле **Зависимости**
-- Не создавай задачи для уже реализованных пунктов плана (проверь статус в плане и код)
-- Папка `.issues/_done/` — архив завершённых задач, не создавай там новых
+- One task = one issue file
+- The task must be self-contained — the implementer understands what to do without reading the full plan
+- Specify exact file paths, concrete steps, verifiable criteria
+- If tasks depend on each other — indicate the dependency number in the **Dependencies** field
+- Do not create tasks for already-completed plan items (check status in the plan and code)
+- The `.issues/_done/` folder is an archive of completed tasks — do not create new files there
 
-## После создания
+## After Creation
 
-1. Выведи список созданных issues в виде чеклиста:
+1. Output the list of created issues as a checklist:
 ```
-[ ] 001-create-user-model — Создать модель User с полем email
-[ ] 002-add-validation — Добавить валидацию email
-[ ] 003-write-tests — Написать тесты для User model
+[ ] 001-create-user-model — Create User model with email field
+[ ] 002-add-validation — Add email validation
+[ ] 003-write-tests — Write tests for User model
 ```
 
-2. Укажи общее количество задач и зависимости между ними
+2. Indicate the total number of tasks and dependencies between them
 
-3. Подскажи: для выполнения задач используй промпты `/handoff` или работай пошагово, перенося завершённые issue в `_done`
+3. Suggest: to work on tasks, use the `/handoff` prompt or work step-by-step, moving completed issues to `_done`

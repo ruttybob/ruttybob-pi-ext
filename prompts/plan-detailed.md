@@ -10,9 +10,9 @@ Write comprehensive implementation plans assuming the implementer has zero conte
 **Core principle:** A good plan makes implementation obvious. If someone has to guess, the plan is incomplete.
 
 
-1. Прочитай оригинальный план целиком — он контекст и структура
-2. Погрузись в код — читай файлы, которые план затрагивает
-3. Распиши каждый таск до уровня copy-paste кода и точных команд
+1. Read the original plan in full — it provides context and structure
+2. Dive into the code — read the files the plan touches
+3. Expand each task to copy-paste code level with exact commands
 
 <goal>
 $@
@@ -44,7 +44,7 @@ Every step is ONE action:
 ````markdown
 # [Feature] Implementation Plan
 
-**Статус:** ⏳ Не реализовано
+**Status:** ⏳ Not implemented
 **Goal:** [One sentence]
 **Architecture:** [2-3 sentences about approach]
 **Tech Stack:** [Key technologies]
@@ -100,6 +100,7 @@ git commit -m "feat: add specific behavior"
 ## Writing Process
 
 1. **Understand requirements** — read the user's request, design docs, constraints
+   - **If there are open questions** — you must use the `questionnaire` tool to clarify with the user before writing the plan. Do not write a plan with ambiguities.
 2. **Explore codebase** — use `bash` or `read` to understand patterns
 3. **Design approach** — architecture, file organization, dependencies, testing strategy
 4. **Write tasks** in order: setup → core (TDD each) → edge cases → integration → cleanup

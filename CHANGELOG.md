@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- **advisor**: расширение для стратегии «спросить старшую модель» — tool, команда `/advisor`, lifecycle hooks (session_start restore, before_agent_start strip); конфиг через `~/.config/rpiv-advisor/advisor.json`
+
 ### Changed
+
+- **prompts** (plan, plan-detailed, decompose-plans): перевод на английский, обязательный `questionnaire` при неоднозначностях
 
 - **subagent**: промпты переименованы с `implement.md` → `subagents_implement.md` (и аналогично для scout-and-plan, parallel-implement, implement-and-review)
 - **pi-powerline**: новые модули — breadcrumb (git-путь), editor (vim-режим), footer (TUI-оверлей), settings (конфиг), widget (виджеты); 5 файлов + тесты

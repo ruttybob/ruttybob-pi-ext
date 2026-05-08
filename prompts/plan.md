@@ -4,7 +4,7 @@ argument-hint: "<task-or-discussion-link>"
 ---
 
 
-You need to produce a concrete markdown plan based on the task Do NOT implement anything.
+You need to produce a concrete markdown plan based on the task. Do NOT implement anything.
 
 <goal>
 $@
@@ -20,7 +20,7 @@ $@
 
 ## What to Include
 
-- **Статус** — первая строка плана: `**Статус:** ⏳ Не реализовано`
+- **Status** — first line of the plan: `**Status:** ⏳ Not implemented`
 - **Goal** — one sentence
 - **Context** — what exists now, constraints, assumptions
 - **Approach** — architecture decision and rationale
@@ -34,7 +34,7 @@ If the task is code-related, include exact file paths, function signatures, and 
 ## Process
 
 1. Read the user's request carefully
-2. If unclear, ask ONE brief clarifying question before planning
+2. If unclear — **you must use the `questionnaire` tool** to clarify with the user before writing the plan. Do not write a plan with ambiguities.
 3. Use `read`, `bash` to explore the codebase for context
 4. Design the approach
 5. Write the plan
