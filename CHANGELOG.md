@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- **prompts**: новые промпты — zoom-out, doc-scout, doc-write, explain-codebase, modernize-and-refactor
+- **old/**: архив старых промптов (discuss, explore, old-planmode)
+
 ### Removed
 - Удалены расширения: answer, ask-user-question, fork-to-back, pi-auto-rename, pi-mesh, pi-ralph-wiggum, presets, profiles, shared, side-agents, system-prompt-template
 - Удалены соответствующие тесты и старые промпты (commit, decompose-plans, discuss, explore, plan-detailed, plan-triage, plan, setup-flow)
