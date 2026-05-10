@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **skills**: новые навыки — cli-creator, grill-me, playwright, playwright-interactive
 - **prompts**: новые промпты — zoom-out, doc-scout, doc-write, explain-codebase, modernize-and-refactor
 - **old/**: архив старых промптов (discuss, explore, old-planmode)
 
