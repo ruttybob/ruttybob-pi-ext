@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Removed
+- Удалены расширения: answer, ask-user-question, fork-to-back, pi-auto-rename, pi-mesh, pi-ralph-wiggum, presets, profiles, shared, side-agents, system-prompt-template
+- Удалены соответствующие тесты и старые промпты (commit, decompose-plans, discuss, explore, plan-detailed, plan-triage, plan, setup-flow)
+- Удалён skill `prompt-craft`
+
+### Changed
+- **package.json**: убраны ссылки на удалённые расширения и skills
+- **pi-goal**: синхронный режим записи логов (`pino.destination({ sync: true })`)
+
 ### Fixed
 
 - **tools**: курсор в /tools и /tools-group больше не прыгает на первый пункт после toggle инструмента/группы

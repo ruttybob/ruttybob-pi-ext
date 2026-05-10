@@ -161,7 +161,7 @@ function createPiGoalLogger(options: Pick<GoalExtensionOptions, "logger" | "logL
 
 	const logFile = configuredFile ?? join(homedir(), ".pi", "logs", "pi-goal.log");
 	mkdirSync(dirname(logFile), { recursive: true });
-	return pino({ name: "pi-goal", level }, pino.destination(logFile));
+	return pino({ name: "pi-goal", level }, pino.destination({ dest: logFile, sync: true }));
 }
 
 function goalLogFields(goal: GoalState | undefined): Record<string, unknown> {
