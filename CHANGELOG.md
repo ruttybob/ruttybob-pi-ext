@@ -24,6 +24,14 @@
 - **pi-review**: ReviewConfig — единый формат model ID, убран двухполевой provider+model
 - **pi-review**: ReviewMetadata хранит `originalModelComposite` вместо provider+model
 
+### Changed
+- **cli-creator**: миграция с Codex на pi — заменены все ссылки, добавлены правила YAML frontmatter для companion skill
+- **cli-creator**: обновлён справочник agent-cli-patterns.md (Codex → agent/pi)
+
+### Removed
+- **create-cli**: устаревший skill перемещён в `old/skills/create-cli/`
+- **cli-creator/agents/openai.yaml**: удалён неиспользуемый файл агента
+
 ### Added
 - **skills**: новые навыки — cli-creator, grill-me, playwright, playwright-interactive
 - **prompts**: новые промпты — zoom-out, doc-scout, doc-write, explain-codebase, modernize-and-refactor

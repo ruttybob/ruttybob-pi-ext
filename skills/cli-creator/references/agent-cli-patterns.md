@@ -1,16 +1,16 @@
-# Codex CLI Patterns
+# Agent CLI Patterns
 
-Use this reference when designing the command surface for a new CLI Codex should run.
+Use this reference when designing the command surface for a new CLI the agent should run.
 
 ## Mental model
 
-The CLI is Codex's command layer. It should turn a service, app, API, log source, or database into shell commands Codex can run repeatedly from any repo.
+The CLI is the agent's command layer. It should turn a service, app, API, log source, or database into shell commands the agent can run repeatedly from any repo.
 
-Good CLIs for Codex expose composable primitives. Avoid a single command that tries to "do the whole investigation" when smaller discover, read, resolve, download, inspect, draft, and upload commands would compose better.
+Good CLIs for the agent expose composable primitives. Avoid a single command that tries to "do the whole investigation" when smaller discover, read, resolve, download, inspect, draft, and upload commands would compose better.
 
 ## Help is interface
 
-Write `--help` for a future Codex thread that only has the binary and a vague task. Each command should have a short description and flags with literal names from the product or API.
+Write `--help` for a future agent session that only has the binary and a vague task. Each command should have a short description and flags with literal names from the product or API.
 
 Good top-level help should answer:
 
@@ -29,7 +29,7 @@ Use product nouns, then verbs:
 tool-name --json doctor
 tool-name --json accounts list
 tool-name --json projects list
-tool-name --json channels resolve --name codex
+tool-name --json channels resolve --name general
 tool-name --json messages search "exact phrase"
 tool-name --json messages context <message-id> --before 3 --after 3
 tool-name --json logs download <build-url> --failed --out ./logs
@@ -77,11 +77,11 @@ Design first-pass commands in this order:
 3. **Read** an exact object: issue, event, thread, draft, customer, job, run, media item.
 4. **Context** around an anchor when useful: nearby messages, parent thread, surrounding logs, audit history.
 
-Do not force Codex to repeatedly search when it already has a stable ID.
+Do not force the agent to repeatedly search when it already has a stable ID.
 
 ## Text, JSON, files, exit codes
 
-Support human text by default if it helps. Support `--json` everywhere Codex will parse or pipe results.
+Support human text by default if it helps. Support `--json` everywhere the agent will parse or pipe results.
 
 For `--json`:
 
@@ -151,4 +151,4 @@ Rules:
 - Use `request get ...` only when high-level commands are missing.
 ```
 
-Include JSON shape notes only when Codex needs them to choose the next command.
+Include JSON shape notes only when the agent needs them to choose the next command.

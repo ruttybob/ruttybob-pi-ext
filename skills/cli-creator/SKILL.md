@@ -1,11 +1,11 @@
 ---
 name: cli-creator
-description: Build a composable CLI for Codex from API docs, an OpenAPI spec, existing curl examples, an SDK, a web app, an admin tool, or a local script. Use when the user wants Codex to create a command-line tool that can run from any repo, expose composable read/write commands, return stable JSON, manage auth, and pair with a companion skill.
+description: Build a composable CLI for pi coding agent from API docs, an OpenAPI spec, existing curl examples, an SDK, a web app, an admin tool, or a local script. Use when the user wants pi to create a command-line tool that can run from any repo, expose composable read/write commands, return stable JSON, manage auth, and pair with a companion skill.
 ---
 
 # CLI Creator
 
-Create a real CLI that future Codex threads can run by command name from any working directory.
+Create a real CLI that future pi sessions can run by command name from any working directory.
 
 This skill is for durable tools, not one-off scripts. If a short script in the current repo solves the task, write the script there instead.
 
@@ -37,7 +37,7 @@ command -v cargo rustc node pnpm npm python3 uv || true
 
 Then choose the least surprising toolchain:
 
-- Default to **Rust** for a durable CLI Codex should run from any repo: one fast binary, strong argument parsing, good JSON handling, easy copy/install into `~/.local/bin`.
+- Default to **Rust** for a durable CLI pi should run from any repo: one fast binary, strong argument parsing, good JSON handling, easy copy/install into `~/.local/bin`.
 - Use **TypeScript/Node** when the official SDK, auth helper, browser automation library, or existing repo tooling is the reason the CLI can be better.
 - Use **Python** when the source is data science, local file transforms, notebooks, SQLite/CSV/JSON analysis, or Python-heavy admin tooling that can still be installed as a durable command.
 
@@ -63,7 +63,7 @@ Build toward this surface:
 - `--json` returns stable machine-readable output.
 - A raw escape hatch exists: `request`, `tool-call`, `api`, or the nearest honest name.
 
-Do not expose only a generic `request` command. Give Codex high-level verbs for the repeated jobs.
+Do not expose only a generic `request` command. Give the agent high-level verbs for the repeated jobs.
 
 Document the JSON policy in the CLI README or equivalent: API pass-through versus CLI envelope, success shape, error shape, and one example for each command family. Under `--json`, errors must be machine-readable and must not contain credentials.
 
@@ -143,9 +143,23 @@ Add a `Makefile` target such as `make install-local` that installs the command o
 
 ## Companion Skill
 
-After the CLI works, create or update a small skill for it. Use `$skill-creator` when it is available. Use `$CODEX_HOME/skills/<tool-name>/SKILL.md` for a personal companion skill unless the user names a repo-local `.codex/skills/...` path or another skill repo.
+After the CLI works, create or update a small skill for it. Use `$skill-creator` when it is available. Use `~/.pi/agent/skills/<tool-name>/SKILL.md` for a personal companion skill unless the user names a repo-local `.pi/skills/...` path or another skill repo.
 
-Write the companion skill in the order a future Codex thread should use the CLI, not as a tour of every feature. Explain:
+The companion skill file must start with a YAML frontmatter block that includes at least `description`:
+
+```yaml
+---
+description: "Short summary of what the CLI does and when to use the skill."
+---
+```
+
+Frontmatter rules:
+
+- `description` is **required**. Without it pi reports a skill conflict.
+- Always **quote** the `description` value with double quotes — YAML treats unquoted colons as nested mappings and will fail to parse.
+- Keep the description to one or two sentences.
+
+Write the companion skill body in the order a future agent session should use the CLI, not as a tour of every feature. Explain:
 
 - How to verify the installed command exists.
 - Which command to run first.
@@ -157,4 +171,4 @@ Write the companion skill in the order a future Codex thread should use the CLI,
 - What not to do without explicit user approval.
 - Three copy-pasteable command examples.
 
-Keep API reference details in the CLI docs or a skill reference file. Keep the skill focused on ordering, safety, and examples future Codex threads should actually run.
+Keep API reference details in the CLI docs or a skill reference file. Keep the skill focused on ordering, safety, and examples future pi sessions should actually run.
