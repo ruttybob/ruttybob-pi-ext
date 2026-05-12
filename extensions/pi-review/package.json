@@ -1,0 +1,22 @@
+{
+  "name": "pi-review-extension",
+  "version": "2.0.0",
+  "description": "Review current pi work in a new branch with conversation context, git diff, and customizable prompts",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.74.0",
+    "@earendil-works/pi-ai": ">=0.74.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

@@ -3,6 +3,28 @@
 ## [Unreleased]
 
 ### Added
+- **pi-review v2**: полный апгрейд расширения (v1.1.1 → v2.0.0)
+  - git diff в контексте ревью (опционально, лимит 2000 строк)
+  - кастомизируемый промпт: `.pi/prompts/review.md` → `promptFile` → `instruction` → fallback
+  - подстановка `{{focus}}` и `{{project}}` в шаблонах промпта
+  - составной model ID (`"openrouter/deepseek/deepseek-v4-pro"`) вместо provider+model
+  - runtime-валидация thinkingLevel
+  - package.json, tsconfig.json, vitest.config.ts
+  - 35 unit-тестов (settings, prompt, conversation-context)
+  - README.md с документацией
+
+### Fixed
+- **pi-review**: agent_end restore привязан к review-ветке (проверка ReviewMetadata)
+- **pi-review**: guard от повторного `/review` при активном ревью
+- **pi-review**: async `restoreOriginalState()` с `await setModel()` и try/catch
+- **pi-review**: `/review-back` не молчит в headless-режиме
+- **pi-review**: try/catch вокруг `navigateTree` с гарантированным restore модели
+
+### Changed
+- **pi-review**: ReviewConfig — единый формат model ID, убран двухполевой provider+model
+- **pi-review**: ReviewMetadata хранит `originalModelComposite` вместо provider+model
+
+### Added
 - **skills**: новые навыки — cli-creator, grill-me, playwright, playwright-interactive
 - **prompts**: новые промпты — zoom-out, doc-scout, doc-write, explain-codebase, modernize-and-refactor
 - **old/**: архив старых промптов (discuss, explore, old-planmode)
