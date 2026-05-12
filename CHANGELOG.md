@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **skill-creator**: новый навык для создания agent-скиллов (структура, шаблон, правила описания)
 - **pi-review v2**: полный апгрейд расширения (v1.1.1 → v2.0.0)
   - git diff в контексте ревью (опционально, лимит 2000 строк)
   - кастомизируемый промпт: `.pi/prompts/review.md` → `promptFile` → `instruction` → fallback
