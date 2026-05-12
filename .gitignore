@@ -16,3 +16,4 @@ memory/
 .ralph/
 .agents/
 .playwright-cli/
+.worktrees/
