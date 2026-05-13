@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- **pi-worktree-agent**: расширение для управления git worktrees
+  - Команда `/worktree <task>` — спавнит специализированного агента с изолированным контекстом
+  - Инструмент `worktree` — аналогичный функционал для LLM
+  - Ограниченный bash: только git, package managers, базовые утилиты
+  - Встроенные навыки: `using-git-worktrees`, `finishing-a-development-branch`
+  - Полный жизненный цикл: создание worktree → работа → тесты → merge/PR/cleanup
 - **skill-creator**: новый навык для создания agent-скиллов (структура, шаблон, правила описания)
 - **pi-review v2**: полный апгрейд расширения (v1.1.1 → v2.0.0)
   - git diff в контексте ревью (опционально, лимит 2000 строк)
@@ -30,7 +36,7 @@
 - **cli-creator**: обновлён справочник agent-cli-patterns.md (Codex → agent/pi)
 
 ### Removed
-- **create-cli**: устаревший skill перемещён в `old/skills/create-cli/`
+- **pi-skill-toggle**: расширение перенесено в rutty-pi
 - **cli-creator/agents/openai.yaml**: удалён неиспользуемый файл агента
 
 ### Added
