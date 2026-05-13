@@ -1,0 +1,10 @@
+{
+  "name": "pi-worktree",
+  "version": "0.1.0",
+  "description": "Изолированные git-worktree окружения для Pi Coding Agent с tmux-интеграцией",
+  "private": true,
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {}
+}
