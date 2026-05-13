@@ -11,8 +11,8 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import { type ExtensionAPI, type ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { AutocompleteItem } from "@mariozechner/pi-tui";
+import { type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 import { loadSubagentConfig } from "./config.js";
 import { buildSchema, buildDescription } from "./schema.js";
@@ -22,10 +22,10 @@ import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js
 import { getFinalOutput } from "./utils.js";
 
 export default function (pi: ExtensionAPI) {
-	// --- Команда: /subagents:list ---
+	// --- Команда: /agents:list ---
 
-	pi.registerCommand("subagents:list", {
-		description: "List available subagents",
+	pi.registerCommand("agents:list", {
+		description: "List available agents",
 
 		async handler(_args: string, ctx: ExtensionCommandContext) {
 			if (!ctx.hasUI) return;
@@ -34,7 +34,7 @@ export default function (pi: ExtensionAPI) {
 			const discovery = discoverAgents(ctx.cwd, runtimeConfig.agentScope);
 
 			if (discovery.agents.length === 0) {
-				ctx.ui.notify("No subagents available.", "info");
+				ctx.ui.notify("No agents available.", "info");
 				return;
 			}
 
@@ -45,10 +45,10 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- Команда: /subagents:spawn ---
+	// --- Команда: /agents:spawn ---
 
-	pi.registerCommand("subagents:spawn", {
-		description: "Spawn a subagent: /subagents:spawn <agent> <task>",
+	pi.registerCommand("agents:spawn", {
+		description: "Spawn an agent: /agents:spawn <agent> <task>",
 
 		getArgumentCompletions(argumentPrefix: string): AutocompleteItem[] {
 			const runtimeConfig = loadSubagentConfig(process.cwd());
@@ -71,7 +71,7 @@ export default function (pi: ExtensionAPI) {
 
 			const trimmed = (args ?? "").trim();
 			if (!trimmed) {
-				ctx.ui.notify("Usage: /subagents:spawn <agent> <task>", "warning");
+				ctx.ui.notify("Usage: /agents:spawn <agent> <task>", "warning");
 				return;
 			}
 
@@ -80,7 +80,7 @@ export default function (pi: ExtensionAPI) {
 			const task = firstSpace === -1 ? "" : trimmed.slice(firstSpace + 1).trim();
 
 			if (!task) {
-				ctx.ui.notify("Usage: /subagents:spawn <agent> <task>", "warning");
+				ctx.ui.notify("Usage: /agents:spawn <agent> <task>", "warning");
 				return;
 			}
 

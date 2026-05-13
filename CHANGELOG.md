@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- **subagent**: агент `worktree` для управления git worktrees
+- **subagent**: новые промпты — `chain_pwr`, `do-parallel`, `do-review`, `research`, `review-agent`, `scout-plan`, `wt-feat`, `wt-fix`, `wt-merge`, `wt-mgr`
 - **pi-worktree-agent**: расширение для управления git worktrees
   - Команда `/worktree <task>` — спавнит специализированного агента с изолированным контекстом
   - Инструмент `worktree` — аналогичный функционал для LLM
@@ -29,6 +31,9 @@
 
 ### Changed
 - **migration**: `@mariozechner` → `@earendil-works` — обновлены все импорты в расширениях, стабы, алиасы в vitest/tsconfig, `package.json`
+- **subagent**: команды `/subagents:list|spawn` переименованы в `/agents:list|spawn`
+- **subagent**: поддержка `skills` во frontmatter агентов — авторезолв путей и передача через `--skill`
+- **subagent**: `planner` агент — добавлен `bash` в tools
 - **pi-review**: ReviewConfig — единый формат model ID, убран двухполевой provider+model
 - **pi-review**: ReviewMetadata хранит `originalModelComposite` вместо provider+model
 
@@ -37,6 +42,7 @@
 - **cli-creator**: обновлён справочник agent-cli-patterns.md (Codex → agent/pi)
 
 ### Removed
+- **subagent**: старые промпты (`subagents_implement`, `subagents_implement-and-review`, `subagents_parallel-implement`, `subagents_scout-and-plan`)
 - **pi-skill-toggle**: расширение перенесено в rutty-pi
 - **cli-creator/agents/openai.yaml**: удалён неиспользуемый файл агента
 

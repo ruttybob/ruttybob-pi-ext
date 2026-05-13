@@ -9,11 +9,30 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Message } from "@mariozechner/pi-ai";
-import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
+import type { Message } from "@earendil-works/pi-ai";
+import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig } from "./agents.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
 import { getDisplayItems, getFinalOutput } from "./utils.js";
+
+// --- Разрешение путей к skills ---
+
+/**
+ * Ищет skill по имени, поднимаясь от agentFilePath вверх
+ * до первой директории skills/<skillName>.
+ */
+function resolveSkillPath(agentFilePath: string, skillName: string): string | null {
+	let dir = path.dirname(agentFilePath);
+	while (true) {
+		const candidate = path.join(dir, "skills", skillName);
+		if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+			return candidate;
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) return null;
+		dir = parent;
+	}
+}
 
 // --- Вспомогательные функции ---
 
@@ -79,9 +98,19 @@ export async function runSingleAgent(
 		};
 	}
 
-	const args: string[] = ["--mode", "json", "-p", "--no-session"];
+	const args: string[] = ["--mode", "json", "-p", "--no-session", "--no-skills"];
 	if (agent.model) args.push("--model", agent.model);
 	if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
+
+	// Разрешаем и добавляем skills из frontmatter
+	if (agent.skills && agent.skills.length > 0) {
+		for (const skillName of agent.skills) {
+			const skillPath = resolveSkillPath(agent.filePath, skillName);
+			if (skillPath) {
+				args.push("--skill", skillPath);
+			}
+		}
+	}
 
 	let tmpPromptDir: string | null = null;
 	let tmpPromptPath: string | null = null;
