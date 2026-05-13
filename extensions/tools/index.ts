@@ -14,7 +14,8 @@
  *   /tools-group    — manage groups (create, delete, toggle)
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { loadDisabledPatterns, loadIgnorePatterns, resolveIgnoredTools } from "./ignore.js";
 import { ToolSelector, type ToolItem } from "./tool-selector.js";
 import {
@@ -183,6 +184,22 @@ export default function toolsExtension(pi: ExtensionAPI) {
 
 	pi.registerCommand("tools", {
 		description: "Enable/disable tools or toggle a group",
+		getArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
+			const cwd = process.cwd();
+			const groups = loadGroups(cwd);
+			if (groups.length === 0) return null;
+
+			const items: AutocompleteItem[] = groups.map((g) => ({
+				value: g.name,
+				label: g.name,
+				description: g.description ?? g.pattern,
+			}));
+
+			if (!argumentPrefix) return items;
+
+			const lower = argumentPrefix.toLowerCase();
+			return items.filter((item) => item.value.toLowerCase().startsWith(lower));
+		},
 		handler: async (args, ctx) => {
 			// Если передан аргумент — toggle группы
 			const groupName = typeof args === "string" ? args.trim() : "";

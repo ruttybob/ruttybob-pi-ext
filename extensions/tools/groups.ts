@@ -1,18 +1,12 @@
 /**
  * Tool Groups — именованные glob-группы инструментов.
  *
- * Конфиг хранится в:
- *   - глобальный: ~/.pi/agent/toolgroups.json
- *   - проектный:  <cwd>/.pi/toolgroups.json
- *
- * Оба конфига объединяются (union, проектный добавляет к глобальному).
- * Перезапись идёт только в проектный конфиг.
+ * Конфиг хранится глобально: ~/.pi/agent/toolgroups.json
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join, dirname } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { matchesPattern } from "./ignore.js";
 
 // ---------------------------------------------------------------------------
@@ -59,31 +53,19 @@ function readGroupsFile(filePath: string): ToolGroup[] {
 }
 
 /**
- * Загружает группы из глобального и проектного конфигов (union).
- *
- * При совпадении `name` проектная группа перезаписывает глобальную.
+ * Загружает группы из глобального конфига.
  */
-export function loadGroups(cwd: string): ToolGroup[] {
+export function loadGroups(_cwd: string): ToolGroup[] {
 	const globalPath = join(getAgentDir(), "toolgroups.json");
-	const projectPath = join(cwd, ".pi", "toolgroups.json");
-
-	const globalGroups = readGroupsFile(globalPath);
-	const projectGroups = readGroupsFile(projectPath);
-
-	// Merge: проектные перезаписывают глобальные с тем же name
-	const map = new Map<string, ToolGroup>();
-	for (const g of globalGroups) map.set(g.name, g);
-	for (const g of projectGroups) map.set(g.name, g);
-
-	return Array.from(map.values());
+	return readGroupsFile(globalPath);
 }
 
 /**
- * Сохраняет группы в проектный конфиг (<cwd>/.pi/toolgroups.json).
+ * Сохраняет группы в глобальный конфиг (~/.pi/agent/toolgroups.json).
  */
-export function saveGroups(cwd: string, groups: ToolGroup[]): void {
-	const projectPath = join(cwd, ".pi", "toolgroups.json");
-	const dir = dirname(projectPath);
+export function saveGroups(_cwd: string, groups: ToolGroup[]): void {
+	const globalPath = join(getAgentDir(), "toolgroups.json");
+	const dir = dirname(globalPath);
 
 	if (!existsSync(dir)) {
 		mkdirSync(dir, { recursive: true });
@@ -95,7 +77,7 @@ export function saveGroups(cwd: string, groups: ToolGroup[]): void {
 		return entry;
 	});
 
-	writeFileSync(projectPath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+	writeFileSync(globalPath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
 // ---------------------------------------------------------------------------

@@ -20,17 +20,18 @@ let tmpDir: string;
 beforeEach(() => {
 	tmpDir = join(tmpdir(), `tools-groups-test-${Date.now()}`);
 	mkdirSync(tmpDir, { recursive: true });
+	// Направляем getAgentDir() в tmpDir (см. stub @earendil-works/pi-coding-agent)
+	process.env.PI_CODING_AGENT_DIR = tmpDir;
 });
 
 afterEach(() => {
+	delete process.env.PI_CODING_AGENT_DIR;
 	rmSync(tmpDir, { recursive: true, force: true });
 });
 
-function writeProjectGroups(groups: ToolGroup[]) {
-	const dir = join(tmpDir, ".pi");
-	mkdirSync(dir, { recursive: true });
+function writeGlobalGroups(groups: ToolGroup[]) {
 	writeFileSync(
-		join(dir, "toolgroups.json"),
+		join(tmpDir, "toolgroups.json"),
 		`${JSON.stringify(groups, null, 2)}\n`,
 		"utf-8",
 	);
@@ -135,8 +136,8 @@ describe("loadGroups", () => {
 		expect(loadGroups(tmpDir)).toEqual([]);
 	});
 
-	it("загружает группы из проектного конфига", () => {
-		writeProjectGroups([
+	it("загружает группы из глобального конфига", () => {
+		writeGlobalGroups([
 			{ name: "zai", pattern: "zai_*", description: "ZAI tools" },
 			{ name: "mesh", pattern: "mesh_*" },
 		]);
@@ -148,14 +149,12 @@ describe("loadGroups", () => {
 	});
 
 	it("игнорирует битый JSON", () => {
-		const dir = join(tmpDir, ".pi");
-		mkdirSync(dir, { recursive: true });
-		writeFileSync(join(dir, "toolgroups.json"), "not json", "utf-8");
+		writeFileSync(join(tmpDir, "toolgroups.json"), "not json", "utf-8");
 		expect(loadGroups(tmpDir)).toEqual([]);
 	});
 
 	it("игнорирует некорректные записи", () => {
-		writeProjectGroups([
+		writeGlobalGroups([
 			{ name: "zai", pattern: "zai_*" },
 			{ bad: "entry" } as any,
 			{ name: "no-pattern" } as any,
@@ -167,7 +166,7 @@ describe("loadGroups", () => {
 });
 
 describe("saveGroups", () => {
-	it("сохраняет группы в проектный конфиг", () => {
+	it("сохраняет группы в глобальный конфиг", () => {
 		const groups: ToolGroup[] = [
 			{ name: "zai", pattern: "zai_*", description: "ZAI tools" },
 			{ name: "brave", pattern: "brave_*" },
@@ -182,10 +181,11 @@ describe("saveGroups", () => {
 		expect(loaded[1].name).toBe("brave");
 	});
 
-	it("создаёт директорию .pi при необходимости", () => {
+	it("создаёт директорию глобального конфига при необходимости", () => {
 		const freshDir = join(tmpDir, "nested", "path");
+		process.env.PI_CODING_AGENT_DIR = freshDir;
 		saveGroups(freshDir, [{ name: "test", pattern: "test_*" }]);
-		expect(existsSync(join(freshDir, ".pi", "toolgroups.json"))).toBe(true);
+		expect(existsSync(join(freshDir, "toolgroups.json"))).toBe(true);
 	});
 
 	it("не записывает undefined description", () => {
