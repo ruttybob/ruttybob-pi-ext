@@ -1,6 +1,7 @@
 ---
 name: first-principles-decomposer
 description: Break any problem down to fundamental truths, then rebuild solutions from atoms up. Use when user says "firstp", "first principles", "from scratch", "what are we assuming", "break this down", "atomic", "fundamental truth", "physics thinking", "Elon method", "bedrock", "ground up", "core problem", "strip away", or challenges assumptions about how things are done.
+disable-model-invocation: true
 ---
 
 # First Principles Decomposer

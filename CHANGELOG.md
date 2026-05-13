@@ -36,6 +36,7 @@
 - **subagent**: `planner` агент — добавлен `bash` в tools
 - **tools**: tool groups — только глобальный конфиг (`~/.pi/agent/toolgroups.json`), убрана поддержка проектного `.pi/toolgroups.json`
 - **tools**: автокомплит имён групп для `/tools <group>`
+- **first-principles-decomposer**: добавлен `disable-model-invocation: true`
 - **pi-review**: ReviewConfig — единый формат model ID, убран двухполевой provider+model
 - **pi-review**: ReviewMetadata хранит `originalModelComposite` вместо provider+model
 
