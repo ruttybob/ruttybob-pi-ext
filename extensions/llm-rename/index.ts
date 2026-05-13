@@ -35,7 +35,7 @@ const CONFIG_PATH = join(homedir(), ".pi", "agent", "extensions", "pi-auto-renam
 
 const SYSTEM_PROMPT =
 	"You create short, descriptive session names for chat sessions with AI. " +
-	"Use 2-6 words in Title Case. Respond with only the name, no quotes or punctuation.";
+	"Use 2-3 words in Title Case. Respond with only the name, no quotes or punctuation.";
 
 const SUBCOMMANDS = ["model", "prompt", "on", "off", "show", "reset", "help"];
 const USAGE =
@@ -303,9 +303,9 @@ async function generateName(
 const GLOBAL_RENAME_MD = join(homedir(), ".pi", "agent", "RENAME.md");
 
 const DEFAULT_INSTRUCTION_AUTO =
-	"Name this session based on the first user message. Use 2-6 words in Title Case.";
+	"Name this session based on the first user message. Use 2-3 words in Title Case.";
 const DEFAULT_INSTRUCTION_MANUAL =
-	"Name this session based on the full conversation history. Use 2-6 words in Title Case.";
+	"Name this session based on the full conversation history. Use 2-3 words in Title Case.";
 
 async function readPromptFile(path: string): Promise<{ system?: string; instruction?: string } | null> {
 	const raw = await tryRead(path);

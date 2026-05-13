@@ -13,6 +13,10 @@
 - **pi-worktree**: новое расширение
 - **prompts**: добавлен `discuss.md`
 - **skills**: `finishing-a-development-branch`, `prompt-craft`, `using-git-worktrees`
+
+### Changed
+- **llm-rename**: лимит слов в названии сессии уменьшен с 2-6 до 2-3
+- **pi-powerline**: имя сессии перенесено в конец breadcrumb (после папки)
 - **prompts**: старые промпты (`diff-review`, `fact-check`, `generate-slides`) перенесены в `old/`
 - **subagent**: агент `worktree` для управления git worktrees
 - **subagent**: новые промпты — `chain_pwr`, `do-parallel`, `do-review`, `research`, `review-agent`, `scout-plan`, `wt-feat`, `wt-fix`, `wt-merge`, `wt-mgr`

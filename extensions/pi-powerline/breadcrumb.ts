@@ -91,7 +91,7 @@ export function getBreadcrumbData(ctx: ExtensionContext | null): BreadcrumbData 
 // breadcrumb info renderer (model → folder, colored)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Render the «SessionName · model → folder» breadcrumb info string. Optionally append ANSI reset. */
+/** Render the «model → folder · SessionName» breadcrumb info string. Optionally append ANSI reset. */
 export function renderBreadcrumbInfo(data: BreadcrumbData, theme: Theme, reset = false): string {
   const modelFolder =
     hexFg('#d787af', data.modelText) +
@@ -99,7 +99,7 @@ export function renderBreadcrumbInfo(data: BreadcrumbData, theme: Theme, reset =
     hexFg('#00afaf', data.folderText);
 
   const line = data.sessionText
-    ? hexFg('#ffaf5f', data.sessionText) + theme.fg('dim', ' · ') + modelFolder
+    ? modelFolder + theme.fg('dim', ' · ') + hexFg('#ffaf5f', data.sessionText)
     : modelFolder;
 
   return reset ? line + '\x1b[0m' : line;
