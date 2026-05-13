@@ -6,6 +6,7 @@
  */
 import { basename } from 'node:path';
 import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent';
+import { visibleWidth } from '@mariozechner/pi-tui';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // nerd font detection
@@ -23,6 +24,7 @@ const NERD = hasNerdFonts();
 
 export const ICON_MODEL = NERD ? '\uF4BC' : '';
 export const ICON_FOLDER = NERD ? '\uF115' : '';
+export const ICON_SESSION = NERD ? '\uF713' : '';
 export const SEP = NERD ? '\uf054' : '/';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -46,19 +48,38 @@ export function hexFg(hex: string, text: string): string {
 // breadcrumb data
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** Truncate text to max visible width, appending ellipsis if needed. */
+function truncateText(text: string, maxLen: number): string {
+  if (visibleWidth(text) <= maxLen) return text;
+  // shrink until visibleWidth fits, accounting for "…"
+  let out = text;
+  while (out.length > 1 && visibleWidth(out + '…') > maxLen) {
+    out = out.slice(0, -1);
+  }
+  return out + '…';
+}
+
+const SESSION_NAME_MAX = 25;
+
 export interface BreadcrumbData {
+  sessionName?: string;  // short truncated session name
+  sessionText: string;   // icon + sessionName (empty when no name)
   modelName: string;
   folder: string;
-  modelText: string; // icon + modelName
-  folderText: string; // icon + folder
+  modelText: string;     // icon + modelName
+  folderText: string;    // icon + folder
 }
 
 export function getBreadcrumbData(ctx: ExtensionContext | null): BreadcrumbData {
   const cwd = ctx?.cwd ?? process.cwd();
   const folder = basename(cwd) || cwd;
   const modelName = ctx?.model?.name || ctx?.model?.id || 'no-model';
+  const rawSessionName = ctx?.sessionManager.getSessionName();
+  const sessionName = rawSessionName ? truncateText(rawSessionName, SESSION_NAME_MAX) : undefined;
 
   return {
+    sessionName,
+    sessionText: sessionName ? withIcon(ICON_SESSION, sessionName) : '',
     modelName,
     folder,
     modelText: withIcon(ICON_MODEL, modelName),
@@ -70,11 +91,16 @@ export function getBreadcrumbData(ctx: ExtensionContext | null): BreadcrumbData 
 // breadcrumb info renderer (model → folder, colored)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Render the "model→folder" breadcrumb info string. Optionally append ANSI reset. */
+/** Render the «SessionName · model → folder» breadcrumb info string. Optionally append ANSI reset. */
 export function renderBreadcrumbInfo(data: BreadcrumbData, theme: Theme, reset = false): string {
-  const line =
+  const modelFolder =
     hexFg('#d787af', data.modelText) +
     theme.fg('dim', ` ${SEP} `) +
     hexFg('#00afaf', data.folderText);
+
+  const line = data.sessionText
+    ? hexFg('#ffaf5f', data.sessionText) + theme.fg('dim', ' · ') + modelFolder
+    : modelFolder;
+
   return reset ? line + '\x1b[0m' : line;
 }
