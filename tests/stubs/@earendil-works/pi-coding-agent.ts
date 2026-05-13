@@ -1,5 +1,5 @@
 /**
- * Stub-модуль для @mariozechner/pi-coding-agent.
+ * Stub-модуль для @earendil-works/pi-coding-agent.
  *
  * Предоставляет минимальные экспорты, необходимые для тестирования расширений,
  * которые импортируют типы и функции из pi SDK.
@@ -191,7 +191,7 @@ export interface Message {
 	[key: string]: unknown;
 }
 
-// ВНИМАНИЕ: Message дублирован в stubs/@mariozechner/pi-ai.ts.
+// ВНИМАНИЕ: Message дублирован в stubs/@earendil-works/pi-ai.ts.
 // При изменении структуры — обновить оба файла одновременно.
 
 export class DynamicBorder {

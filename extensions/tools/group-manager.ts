@@ -11,7 +11,7 @@ import {
 	Input,
 	matchesKey,
 	truncateToWidth,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 
 // ---------------------------------------------------------------------------
 // Типы

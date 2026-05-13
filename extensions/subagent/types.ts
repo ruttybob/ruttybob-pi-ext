@@ -4,8 +4,8 @@
  * POS-модуль (Plain Old TypeScript Structures) — без побочных эффектов и зависимостей.
  */
 
-import type { Message } from "@mariozechner/pi-ai";
-import { type AgentToolResult } from "@mariozechner/pi-coding-agent";
+import type { Message } from "@earendil-works/pi-ai";
+import { type AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { AgentScope } from "./agents.js";
 
 // --- Usage-статистика ---

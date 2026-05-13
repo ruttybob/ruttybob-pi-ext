@@ -9,7 +9,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 // ---------------------------------------------------------------------------
 // Glob-матчинг (fnmatch-стиль: * → любая подстрока, ? → один символ)

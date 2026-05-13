@@ -3,8 +3,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Мокаем @mariozechner/pi-coding-agent (getAgentDir)
-vi.mock("@mariozechner/pi-coding-agent", () => ({
+// Мокаем @earendil-works/pi-coding-agent (getAgentDir)
+vi.mock("@earendil-works/pi-coding-agent", () => ({
 	getAgentDir: () => "/tmp/test-pi-agent",
 }));
 

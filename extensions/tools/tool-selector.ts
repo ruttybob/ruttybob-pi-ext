@@ -6,7 +6,7 @@
  * Locked-инструменты фильтруются до передачи в этот компонент.
  */
 
-import { fuzzyFilter, getKeybindings, Input, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
+import { fuzzyFilter, getKeybindings, Input, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 
 // ---------------------------------------------------------------------------
 // Типы

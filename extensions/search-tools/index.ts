@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import { MCP_SERVER_PATHS } from './src/constants.js';
 import { loadConfig } from './src/config.js';
 import { createRemoteMcpClient } from './src/client/remote-mcp.js';

@@ -5,7 +5,7 @@
  * без изменений в структуре данных.
  */
 
-import type { TruncateResult } from "@mariozechner/pi-coding-agent";
+import type { TruncateResult } from "@earendil-works/pi-coding-agent";
 
 // ============================================================================
 // Common Search Options

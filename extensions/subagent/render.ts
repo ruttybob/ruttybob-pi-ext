@@ -6,8 +6,8 @@
  */
 
 import * as os from "node:os";
-import { type ExtensionAPI, getMarkdownTheme } from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
+import { type ExtensionAPI, getMarkdownTheme } from "@earendil-works/pi-coding-agent";
+import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import type { AgentScope } from "./agents.js";
 import { getDisplayItems, getFinalOutput, aggregateUsage } from "./utils.js";
 import type { DisplayItem, SingleResult, SubagentDetails } from "./types.js";

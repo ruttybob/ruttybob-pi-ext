@@ -22,7 +22,7 @@
 		]
 	},
 	"dependencies": {
-		"@mariozechner/pi-tui": "*",
+		"@earendil-works/pi-tui": "*",
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@sinclair/typebox": "^0.34.49",
 		"@tavily/core": "^0.7.3",

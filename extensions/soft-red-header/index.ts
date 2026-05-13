@@ -8,9 +8,9 @@
  * и динамические ресурсные секции [Skills], [Prompts], [Extensions].
  */
 
-import type { ExtensionAPI, Theme, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import { VERSION } from "@mariozechner/pi-coding-agent";
-import { type TUI, wrapTextWithAnsi } from "@mariozechner/pi-tui";
+import type { ExtensionAPI, Theme, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { VERSION } from "@earendil-works/pi-coding-agent";
+import { type TUI, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";

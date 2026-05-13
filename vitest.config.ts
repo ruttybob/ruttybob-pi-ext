@@ -14,9 +14,9 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			"@mariozechner/pi-coding-agent": resolve(stubDir, "@mariozechner/pi-coding-agent.ts"),
-			"@mariozechner/pi-ai": resolve(stubDir, "@mariozechner/pi-ai.ts"),
-			"@mariozechner/pi-tui": resolve(stubDir, "@mariozechner/pi-tui.ts"),
+			"@earendil-works/pi-coding-agent": resolve(stubDir, "@earendil-works/pi-coding-agent.ts"),
+			"@earendil-works/pi-ai": resolve(stubDir, "@earendil-works/pi-ai.ts"),
+			"@earendil-works/pi-tui": resolve(stubDir, "@earendil-works/pi-tui.ts"),
 			"@sinclair/typebox/value": resolve(stubDir, "@sinclair/typebox/value.ts"),
 			"@sinclair/typebox": resolve(stubDir, "@sinclair/typebox.ts"),
 			"typebox/value": resolve(stubDir, "@sinclair/typebox/value.ts"),

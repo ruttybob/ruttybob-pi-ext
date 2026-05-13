@@ -12,8 +12,8 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			"@mariozechner/pi-coding-agent": resolve(stubDir, "@mariozechner/pi-coding-agent.ts"),
-			"@mariozechner/pi-ai": resolve(stubDir, "@mariozechner/pi-ai.ts"),
+			"@earendil-works/pi-coding-agent": resolve(stubDir, "@earendil-works/pi-coding-agent.ts"),
+			"@earendil-works/pi-ai": resolve(stubDir, "@earendil-works/pi-ai.ts"),
 		},
 	},
 });

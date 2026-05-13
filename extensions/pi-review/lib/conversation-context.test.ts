@@ -7,7 +7,7 @@ import {
 	extractLatestAssistantText,
 	formatConversation,
 } from "./conversation-context.js";
-import type { SessionEntry } from "@mariozechner/pi-coding-agent";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
 describe("extractConversation", () => {
 	it("извлекает user и assistant сообщения", () => {

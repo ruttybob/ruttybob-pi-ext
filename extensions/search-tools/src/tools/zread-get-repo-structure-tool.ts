@@ -1,4 +1,4 @@
-import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { formatRepoStructure } from '../utils/formatting.js';
 

@@ -4,7 +4,7 @@
  * Перенесено из extensions/tavily-tools/tools/tavily/details.ts.
  */
 
-import type { TruncateResult } from "@mariozechner/pi-coding-agent";
+import type { TruncateResult } from "@earendil-works/pi-coding-agent";
 import type { TavilyExtractOptions, TavilySearchOptions } from "@tavily/core";
 import { DEFAULT_MAX_RESULTS } from "./client.js";
 import type {

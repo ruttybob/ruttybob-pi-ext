@@ -4,8 +4,8 @@
  * Регистрируется в группе `brave` расширения search-tools.
  */
 
-import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
-import { Text } from '@mariozechner/pi-tui';
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
+import { Text } from '@earendil-works/pi-tui';
 import { Type } from '@sinclair/typebox';
 import type { BraveSearchResult } from '../services/brave-search.js';
 import { searchBrave } from '../services/brave-search.js';

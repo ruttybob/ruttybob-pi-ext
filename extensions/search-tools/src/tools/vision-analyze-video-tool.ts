@@ -1,4 +1,4 @@
-import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { extractVisionText } from '../services/vision.js';
 import { truncateText } from '../utils/truncation.js';

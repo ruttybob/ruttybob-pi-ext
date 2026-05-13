@@ -1,5 +1,5 @@
 /**
- * Stub-модуль для @mariozechner/pi-ai.
+ * Stub-модуль для @earendil-works/pi-ai.
  */
 
 export { Type } from "@sinclair/typebox";
@@ -10,7 +10,7 @@ export interface Message {
 	[key: string]: unknown;
 }
 
-// ВНИМАНИЕ: Message дублирован в stubs/@mariozechner/pi-coding-agent.ts.
+// ВНИМАНИЕ: Message дублирован в stubs/@earendil-works/pi-coding-agent.ts.
 // При изменении структуры — обновить оба файла одновременно.
 
 /** Конструктор JSON Schema enum из строковых литералов. */

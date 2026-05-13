@@ -7,8 +7,8 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AgentToolUpdateCallback } from '@mariozechner/pi-coding-agent';
-import { Text } from '@mariozechner/pi-tui';
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
+import { Text } from '@earendil-works/pi-tui';
 import { Type } from '@sinclair/typebox';
 import {
 	DEFAULT_MAX_BYTES,
@@ -16,7 +16,7 @@ import {
 	formatSize,
 	type TruncateResult,
 	truncateHead,
-} from '@mariozechner/pi-coding-agent';
+} from '@earendil-works/pi-coding-agent';
 import { htmlToText, extractTitle } from '../utils/html.js';
 
 interface FetchDetails {

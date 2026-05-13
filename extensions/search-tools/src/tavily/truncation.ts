@@ -11,7 +11,7 @@ import {
   truncateHead,
   withFileMutationQueue,
   type TruncateResult,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { Temporal } from "temporal-polyfill";
 
 // ============================================================================

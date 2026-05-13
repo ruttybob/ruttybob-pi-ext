@@ -28,6 +28,7 @@
 - **pi-review**: try/catch вокруг `navigateTree` с гарантированным restore модели
 
 ### Changed
+- **migration**: `@mariozechner` → `@earendil-works` — обновлены все импорты в расширениях, стабы, алиасы в vitest/tsconfig, `package.json`
 - **pi-review**: ReviewConfig — единый формат model ID, убран двухполевой provider+model
 - **pi-review**: ReviewMetadata хранит `originalModelComposite` вместо provider+model
 

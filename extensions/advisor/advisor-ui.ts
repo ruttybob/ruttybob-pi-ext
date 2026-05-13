@@ -6,10 +6,10 @@
  * SelectList theme wiring.
  */
 
-import type { ThinkingLevel } from "@mariozechner/pi-ai";
-import { DynamicBorder, type ExtensionContext, type Theme } from "@mariozechner/pi-coding-agent";
-import { fuzzyFilter, getKeybindings, Input, matchesKey } from "@mariozechner/pi-tui";
-import { Container, type SelectItem, SelectList, Spacer, Text } from "@mariozechner/pi-tui";
+import type { ThinkingLevel } from "@earendil-works/pi-ai";
+import { DynamicBorder, type ExtensionContext, type Theme } from "@earendil-works/pi-coding-agent";
+import { fuzzyFilter, getKeybindings, Input, matchesKey } from "@earendil-works/pi-tui";
+import { Container, type SelectItem, SelectList, Spacer, Text } from "@earendil-works/pi-tui";
 
 const MAX_VISIBLE_ROWS = 10;
 const NAV_HINT = "type to search • ↑↓ navigate • enter select • esc cancel";
