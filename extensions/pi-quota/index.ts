@@ -135,6 +135,34 @@ async function fetchZAI(apiKey: string): Promise<ZaiData> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+//  DeepSeek types & fetch
+// ══════════════════════════════════════════════════════════════════════════
+
+interface DeepSeekBalanceInfo {
+	currency: string;
+	total_balance: string;
+	granted_balance: string;
+	topped_up_balance: string;
+}
+
+interface DeepSeekBalanceData {
+	is_available: boolean;
+	balance_infos: DeepSeekBalanceInfo[];
+}
+
+async function fetchDeepSeek(apiKey: string): Promise<DeepSeekBalanceData> {
+	const r = await fetch("https://api.deepseek.com/user/balance", {
+		headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+		signal: AbortSignal.timeout(15_000),
+	});
+	if (!r.ok) {
+		const t = await r.text().catch(() => r.statusText);
+		throw new Error(`GET /user/balance: HTTP ${r.status}: ${t}`);
+	}
+	return (await r.json()) as DeepSeekBalanceData;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 //  Shared section helpers (unified layout for all tabs)
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -286,6 +314,39 @@ function renderZAI(data: ZaiData, th: Theme, width: number): string[] {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+//  Tab renderer: DeepSeek
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderDeepSeek(data: DeepSeekBalanceData, th: Theme, width: number): string[] {
+	const lines: string[] = [];
+
+	// Availability badge
+	const availIcon = data.is_available ? "✅" : "❌";
+	const availText = data.is_available ? "Available" : "Unavailable";
+	const availColor = data.is_available ? "success" : "error";
+	lines.push(truncateToWidth(`  ${th.fg(availColor, th.bold(`${availIcon} ${availText}`))}`, width));
+
+	if (!data.is_available) {
+		lines.push(truncateToWidth(`  ${th.fg("muted", "API balance endpoint reports unavailable")}`, width));
+		return lines;
+	}
+
+	for (const info of data.balance_infos) {
+		const total = parseFloat(info.total_balance);
+		const granted = parseFloat(info.granted_balance);
+		const topped = parseFloat(info.topped_up_balance);
+
+		lines.push("");
+		lines.push(truncateToWidth(`  ${th.fg("accent", th.bold(`💳 Balance (${info.currency})`))}`, width));
+		lines.push(truncateToWidth(`    ${th.fg("text", "Total:")}     ${th.fg("success", formatUsd(total))}`, width));
+		lines.push(truncateToWidth(`    ${th.fg("text", "Granted:")}   ${th.fg("muted", formatUsd(granted))}`, width));
+		lines.push(truncateToWidth(`    ${th.fg("text", "Topped Up:")} ${th.fg("accent", formatUsd(topped))}`, width));
+	}
+
+	return lines;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 //  Dashboard component
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -295,15 +356,16 @@ type LoadState<T> =
 	| { tag: "err"; msg: string }
 	| { tag: "nokey"; env: string };
 
-type TabId = "zai" | "or";
+type TabId = "zai" | "or" | "ds";
 
 /** Доступные вкладки в порядке переключения */
-const TABS: TabId[] = ["zai", "or"];
+const TABS: TabId[] = ["zai", "or", "ds"];
 
 class Dashboard {
 	private state: {
 		or: LoadState<ORData>;
 		zai: LoadState<ZaiData>;
+		ds: LoadState<DeepSeekBalanceData>;
 	};
 	private theme: Theme;
 	private onClose: () => void;
@@ -317,6 +379,7 @@ class Dashboard {
 		this.state = {
 			or: process.env.OPENROUTER_API_KEY ? { tag: "loading" } : { tag: "nokey", env: "OPENROUTER_API_KEY" },
 			zai: process.env.ZAI_API_KEY ? { tag: "loading" } : { tag: "nokey", env: "ZAI_API_KEY" },
+			ds: process.env.DEEPSEEK_API_KEY ? { tag: "loading" } : { tag: "nokey", env: "DEEPSEEK_API_KEY" },
 		};
 	}
 
@@ -324,6 +387,7 @@ class Dashboard {
 
 	setOR(state: LoadState<ORData>): void { this.state.or = state; this.invalidate(); }
 	setZAI(state: LoadState<ZaiData>): void { this.state.zai = state; this.invalidate(); }
+	setDS(state: LoadState<DeepSeekBalanceData>): void { this.state.ds = state; this.invalidate(); }
 	get activeTab(): TabId { return this.tab; }
 
 	// ── input ────────────────────────────────────────────────────────
@@ -359,10 +423,11 @@ class Dashboard {
 		const tabLabels: Record<TabId, string> = {
 			zai: this.tab === "zai" ? th.fg("error", th.bold(" ZAI ")) : th.fg("dim", " ZAI "),
 			or: this.tab === "or" ? th.fg("error", th.bold(" OpenRouter ")) : th.fg("dim", " OpenRouter "),
+			ds: this.tab === "ds" ? th.fg("error", th.bold(" DeepSeek ")) : th.fg("dim", " DeepSeek "),
 		};
 		const sep = th.fg("error", "│");
-		const tabBar = ` ${tabLabels.zai} ${sep} ${tabLabels.or} `;
-		const tabBarRaw = " ZAI │ OpenRouter ";
+		const tabBar = ` ${tabLabels.zai} ${sep} ${tabLabels.or} ${sep} ${tabLabels.ds} `;
+		const tabBarRaw = " ZAI │ OpenRouter │ DeepSeek ";
 		const leftDash = Math.max(1, Math.floor((width - tabBarRaw.length) / 2));
 		const rightDash = Math.max(1, width - tabBarRaw.length - leftDash);
 		lines.push(truncateToWidth(
@@ -389,8 +454,10 @@ class Dashboard {
 	private renderActiveTab(th: Theme, width: number, lines: string[]): void {
 		if (this.tab === "zai") {
 			this.renderLoadState(th, lines, this.state.zai, (data) => lines.push(...renderZAI(data, th, width)));
-		} else {
+		} else if (this.tab === "or") {
 			this.renderLoadState(th, lines, this.state.or, (data) => lines.push(...renderOpenRouter(data, th, width)));
+		} else {
+			this.renderLoadState(th, lines, this.state.ds, (data) => lines.push(...renderDeepSeek(data, th, width)));
 		}
 	}
 
@@ -445,6 +512,20 @@ function loadZAI(dash: Dashboard, requestRender: () => void): () => void {
 	return () => { cancelled = true; };
 }
 
+function loadDeepSeek(dash: Dashboard, requestRender: () => void): () => void {
+	let cancelled = false;
+	const key = process.env.DEEPSEEK_API_KEY;
+	if (!key) {
+		dash.setDS({ tag: "nokey", env: "DEEPSEEK_API_KEY" });
+		requestRender();
+		return () => {};
+	}
+	fetchDeepSeek(key)
+		.then((data) => { if (!cancelled) { dash.setDS({ tag: "ok", data }); requestRender(); } })
+		.catch((e: any) => { if (!cancelled) { dash.setDS({ tag: "err", msg: e.message }); requestRender(); } });
+	return () => { cancelled = true; };
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 //  Extension
 // ══════════════════════════════════════════════════════════════════════════
@@ -452,10 +533,11 @@ function loadZAI(dash: Dashboard, requestRender: () => void): () => void {
 export default function (pi: ExtensionAPI) {
 	// ── Команда /quota ───────────────────────────────────────────────
 	pi.registerCommand("quota", {
-		description: "Show unified quota dashboard for OpenRouter and ZAI",
+		description: "Show unified quota dashboard for OpenRouter, ZAI and DeepSeek",
 		handler: async (_args: string, ctx: ExtensionCommandContext) => {
 			const orKey = process.env.OPENROUTER_API_KEY;
 			const zaiKey = process.env.ZAI_API_KEY;
+			const dsKey = process.env.DEEPSEEK_API_KEY;
 
 			// ── Non-interactive fallback ─────────────────────────────
 			if (!ctx.hasUI) {
@@ -476,6 +558,13 @@ export default function (pi: ExtensionAPI) {
 						parts.push(`ZAI: ${d.level}, ${d.limits.length} limits`);
 					} catch (e: any) { parts.push(`ZAI: err ${e.message}`); }
 				}
+				if (dsKey) {
+					try {
+						const d = await fetchDeepSeek(dsKey);
+						const total = d.balance_infos[0]?.total_balance ?? "?";
+						parts.push(`DS Balance: $${total}`);
+					} catch (e: any) { parts.push(`DS: err ${e.message}`); }
+				}
 				ctx.ui.notify(parts.length ? parts.join(" | ") : "No API keys configured", "info");
 				return;
 			}
@@ -491,13 +580,14 @@ export default function (pi: ExtensionAPI) {
 				// Загружаем все вкладки параллельно
 				const cancelOR = loadOpenRouter(dash, () => tui.requestRender());
 				const cancelZAI = loadZAI(dash, () => tui.requestRender());
+				const cancelDS = loadDeepSeek(dash, () => tui.requestRender());
 
 				return {
 					render: (w: number) => dash.render(w),
 					invalidate: () => dash.invalidate(),
 					handleInput: (data: string) => {
 						if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c") || data === "q") {
-							cancelOR(); cancelZAI();
+							cancelOR(); cancelZAI(); cancelDS();
 							dash.handleInput(data); // вызывает onClose → done()
 							return;
 						}
@@ -516,6 +606,10 @@ export default function (pi: ExtensionAPI) {
 								dash.setOR({ tag: "loading" });
 								tui.requestRender();
 								loadOpenRouter(dash, () => tui.requestRender());
+							} else if (dash.activeTab === "ds") {
+								dash.setDS({ tag: "loading" });
+								tui.requestRender();
+								loadDeepSeek(dash, () => tui.requestRender());
 							}
 						}
 					},

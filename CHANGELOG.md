@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- **pi-quota**: вкладка DeepSeek для мониторинга баланса через API `/user/balance`
+- **subagent**: worktree-агент переведён на английский
+- **subagent**: авто-коммит untracked файлов в worktree перед merge
+- **subagent**: промпт `wt-merge` — добавлен шаг авто-коммита перед слиянием
+- **pi-powerline**: отображение имени сессии в breadcrumb
+- **interactive-shell**: новое расширение
+- **llm-rename**: новое расширение
+- **pi-worktree**: новое расширение
+- **prompts**: добавлен `discuss.md`
 - **skills**: `finishing-a-development-branch`, `prompt-craft`, `using-git-worktrees`
 - **prompts**: старые промпты (`diff-review`, `fact-check`, `generate-slides`) перенесены в `old/`
 - **subagent**: агент `worktree` для управления git worktrees
