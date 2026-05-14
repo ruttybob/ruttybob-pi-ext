@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- **pi-powerline**: modern-режим футера на базе сегментов (presets, segments, separators, git-status, theme, colors, types)
+- **extensions**: AGENTS.md для всех 12 расширений (advisor, interactive-shell, llm-rename, pi-goal, pi-powerline, pi-quota, pi-review, pi-worktree, search-tools, session-recap, subagent, tools)
+- **old/skills**: verbalized-sampling skill
 - **pi-quota**: вкладка DeepSeek для мониторинга баланса через API `/user/balance`
 - **subagent**: worktree-агент переведён на английский
 - **subagent**: авто-коммит untracked файлов в worktree перед merge
@@ -15,6 +18,8 @@
 - **skills**: `finishing-a-development-branch`, `prompt-craft`, `using-git-worktrees`
 
 ### Changed
+- **pi-powerline**: рефакторинг — вынос hexFg в theme.ts, общие типы/цвета, новая breadcrumb-раскладка с session name
+- **subagent**: указание model в frontmatter для planner (zai/glm-5.1:high), reviewer (zai/glm-5.1:high), worker (zai/glm-5.1)
 - **llm-rename**: лимит слов в названии сессии уменьшен с 2-6 до 2-3
 - **pi-powerline**: имя сессии перенесено в конец breadcrumb (после папки)
 - **prompts**: старые промпты (`diff-review`, `fact-check`, `generate-slides`) перенесены в `old/`
