@@ -11,6 +11,15 @@
 - **skills**: удалены неиспользуемые `playwright`, `playwright-interactive`, `pi-extension-tester`, `project-rename`
 
 ### Added
+- **look-system-prompt**: расширение для просмотра системного промпта
+- **system-prompt-injection**: навык для инъекции инструкций в системный промпт
+- **subdir-agents-md**: навык для поиска AGENTS.md в подкаталогах
+- **HANDOFF.md**: шаблон передачи контекста между сессиями
+
+### Changed
+- **test**: обновлены стабы `pi-coding-agent` и `pi-tui` под новый API (registerCommand, getSystemPrompt, Markdown.render, MarkdownTheme)
+
+### Added
 - **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов
 - **skills**: `pi-extension-tester` — тестирование расширений pi через vitest-моки
 - **skills**: `project-rename` — переименование проекта по всей кодовой базе

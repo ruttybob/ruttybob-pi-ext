@@ -80,7 +80,7 @@ export function wrapTextWithAnsi(s: string, w: number): string[] {
 
 export class Markdown {
 	constructor(_text?: any, _indent?: number, _width?: number, _theme?: any) {}
-	render(): string { return ""; }
+	render(_width?: number): string[] { return []; }
 }
 export class Container {
 	children: any[] = [];
@@ -127,6 +127,23 @@ export class Component {
 	id?: string;
 	render(_width?: number): string[] { return []; }
 }
+export interface MarkdownTheme {
+	heading: (s: string) => string;
+	bold: (s: string) => string;
+	italic: (s: string) => string;
+	code: (s: string) => string;
+	codeBlock: (s: string) => string;
+	codeBlockBorder: (s: string) => string;
+	link: (s: string) => string;
+	linkUrl: (s: string) => string;
+	quote: (s: string) => string;
+	quoteBorder: (s: string) => string;
+	hr: (s: string) => string;
+	listBullet: (s: string) => string;
+	strikethrough: (s: string) => string;
+	underline: (s: string) => string;
+}
+
 export class TUI {
 	render(): string { return ""; }
 	requestRender(): void {}

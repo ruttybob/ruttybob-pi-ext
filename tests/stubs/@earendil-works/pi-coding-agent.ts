@@ -9,7 +9,11 @@
 export interface ExtensionAPI {
 	on(event: string, handler: (...args: any[]) => any): void;
 	registerTool(tool: any): void;
-	registerCommand(name: string, definition: any): void;
+	registerCommand(name: string, definition: {
+		description: string;
+		handler: (args: string[], ctx: ExtensionCommandContext) => Promise<void> | void;
+		[key: string]: unknown;
+	}): void;
 	registerFlag(name: string, definition: any): void;
 	registerShortcut(key: string, definition: any): void;
 	getActiveTools(): any[];
@@ -69,7 +73,8 @@ export interface ExtensionCommandContext {
 		getApiKeyAndHeaders(model: any): Promise<{ ok: boolean; apiKey?: string; headers?: Record<string, string>; error?: string }>;
 	};
 	model?: { provider: string; id: string; reasoning?: string } & Record<string, unknown>;
-	getSystemPrompt?(): string;
+	getSystemPrompt(): string;
+	getContextUsage?(): { tokens: number; contextWindow: number; percent: number };
 	switchSession?(sessionFile: string, options: { withSession: (ctx: ExtensionCommandContext) => Promise<void> }): Promise<void>;
 	[key: string]: unknown;
 }
