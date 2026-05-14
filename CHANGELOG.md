@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- **subagent**: убран механизм `enabled` из фронтматтера агентов; неактивные агенты перенесены в `optional-agents/`
+- **subagent**: исправлен `import.meta.url` для совместимости с Windows через `fileURLToPath`
+
 ### Added
 - **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов
 - **skills**: `pi-extension-tester` — тестирование расширений pi через vitest-моки
@@ -61,7 +65,7 @@
   - Ограниченный bash: только git, package managers, базовые утилиты
   - Встроенные навыки: `using-git-worktrees`, `finishing-a-development-branch`
   - Полный жизненный цикл: создание worktree → работа → тесты → merge/PR/cleanup
-- **skill-creator**: новый навык для создания agent-скиллов (структура, шаблон, правила описания)
+- **write-skill**: новый навык для создания agent-скиллов (структура, шаблон, правила описания)
 - **pi-review v2**: полный апгрейд расширения (v1.1.1 → v2.0.0)
   - git diff в контексте ревью (опционально, лимит 2000 строк)
   - кастомизируемый промпт: `.pi/prompts/review.md` → `promptFile` → `instruction` → fallback

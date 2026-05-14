@@ -4,6 +4,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 
 export type AgentScope = "user" | "project" | "both";
@@ -11,7 +12,6 @@ export type AgentScope = "user" | "project" | "both";
 export interface AgentConfig {
 	name: string;
 	description: string;
-	enabled: boolean;
 	tools?: string[];
 	skills?: string[];
 	model?: string;
@@ -70,8 +70,7 @@ function loadAgentsFromDir(dir: string, source: "builtin" | "user" | "project"):
 		agents.push({
 			name: frontmatter.name,
 			description: frontmatter.description,
-			enabled: frontmatter.enabled !== "false",
-			tools: tools && tools.length > 0 ? tools : undefined,
+				tools: tools && tools.length > 0 ? tools : undefined,
 			skills: skills && skills.length > 0 ? skills : undefined,
 			model: frontmatter.model,
 			systemPrompt: body,
@@ -106,7 +105,7 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 /**
  * Директория builtin-агентов — рядом с agents.ts.
  */
-const BUILTIN_AGENTS_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), "agents");
+const BUILTIN_AGENTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "agents");
 
 export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
 	const builtinAgents = loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin");
@@ -119,9 +118,7 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 	const agentMap = new Map<string, AgentConfig>();
 
 	// Приоритет по возрастанию: builtin → user → project
-	for (const agent of builtinAgents) {
-		if (agent.enabled) agentMap.set(agent.name, agent);
-	}
+	for (const agent of builtinAgents) agentMap.set(agent.name, agent);
 
 	if (scope === "both") {
 		for (const agent of userAgents) agentMap.set(agent.name, agent);
