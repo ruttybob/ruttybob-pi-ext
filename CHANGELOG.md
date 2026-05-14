@@ -7,6 +7,9 @@
 - **subagent**: исправлен `import.meta.url` для совместимости с Windows через `fileURLToPath`
 - **skills**: `skill-creator` переименован в `write-skill`
 
+### Removed
+- **skills**: удалены неиспользуемые `playwright`, `playwright-interactive`, `pi-extension-tester`, `project-rename`
+
 ### Added
 - **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов
 - **skills**: `pi-extension-tester` — тестирование расширений pi через vitest-моки
