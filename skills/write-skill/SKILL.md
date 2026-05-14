@@ -1,5 +1,5 @@
 ---
-name: skill-creator
+name: write-skill
 description: Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when user wants to create, write, or build a new skill.
 ---
 
@@ -12,6 +12,7 @@ description: Create new agent skills with proper structure, progressive disclosu
    - What specific use cases should it handle?
    - Does it need executable scripts or just instructions?
    - Any reference materials to include?
+   - Should the skill set `disable-model-invocation: true` in the frontmatter? Use when the skill is purely instructional — it only guides agent behavior through system prompt injection and doesn't need its own model invocation at load time.
 
 2. **Draft the skill** - create:
    - SKILL.md with concise instructions
@@ -40,6 +41,7 @@ skill-name/
 ---
 name: skill-name
 description: Brief description of capability. Use when [specific triggers].
+disable-model-invocation: true
 ---
 
 # Skill Name

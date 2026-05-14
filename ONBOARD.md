@@ -27,7 +27,7 @@ A pi package bundling extensions, skills, and prompts for the pi coding agent. E
 - **`agents-md/`** — AGENTS.md convention for project context
 - **`playwright/`** — browser automation and testing
 - **`playwright-interactive/`** — interactive browser sessions
-- **`skill-creator/`** — create new pi skills with proper structure and progressive disclosure
+- **`write-skill/`** — create new pi skills with proper structure and progressive disclosure
 
 ### Prompts (`prompts/`)
 - **`doc-scout.md`** — explore and document codebases

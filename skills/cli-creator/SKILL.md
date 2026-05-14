@@ -143,7 +143,7 @@ Add a `Makefile` target such as `make install-local` that installs the command o
 
 ## Companion Skill
 
-After the CLI works, create or update a small skill for it. Use `$skill-creator` when it is available. Use `~/.pi/agent/skills/<tool-name>/SKILL.md` for a personal companion skill unless the user names a repo-local `.pi/skills/...` path or another skill repo.
+After the CLI works, create or update a small skill for it. Use `$write-skill` when it is available. Use `~/.pi/agent/skills/<tool-name>/SKILL.md` for a personal companion skill unless the user names a repo-local `.pi/skills/...` path or another skill repo.
 
 The companion skill file must start with a YAML frontmatter block that includes at least `description`:
 

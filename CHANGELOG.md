@@ -5,6 +5,7 @@
 ### Changed
 - **subagent**: убран механизм `enabled` из фронтматтера агентов; неактивные агенты перенесены в `optional-agents/`
 - **subagent**: исправлен `import.meta.url` для совместимости с Windows через `fileURLToPath`
+- **skills**: `skill-creator` переименован в `write-skill`
 
 ### Added
 - **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов
