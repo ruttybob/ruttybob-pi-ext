@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Code review specialist for quality and security analysis
+description: Use when you need a code review for quality, security, or maintainability
 tools: read, grep, find, ls, bash
 model: zai/glm-5.1:high
 ---

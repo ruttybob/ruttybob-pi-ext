@@ -1,6 +1,6 @@
 ---
 name: worker
-description: General-purpose subagent with full capabilities, isolated context
+description: Use when you need a general-purpose agent with full read/write capabilities in isolated context
 tools: bash, read, write, edit
 model: zai/glm-5.1
 ---

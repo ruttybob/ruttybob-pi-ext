@@ -15,7 +15,7 @@ import { type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 import { loadSubagentConfig } from "./config.js";
-import { buildSchema, buildDescription } from "./schema.js";
+import { buildSchema, buildDescription, buildPromptGuidelines } from "./schema.js";
 import { runSingleAgent } from "./runner.js";
 import { renderCall, renderResult } from "./render.js";
 import type { OnUpdateCallback, SingleResult, SubagentDetails } from "./types.js";
@@ -113,7 +113,9 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: buildDescription(bootAgents),
+		description: buildDescription(),
+		promptSnippet: "Delegate tasks to specialized subagents with isolated context",
+		promptGuidelines: buildPromptGuidelines(bootAgents),
 		parameters: buildSchema(),
 
 		async execute(_toolCallId: string, params: Record<string, any>, signal: AbortSignal, onUpdate: ((update: any) => void) | undefined, ctx: ExtensionCommandContext) {

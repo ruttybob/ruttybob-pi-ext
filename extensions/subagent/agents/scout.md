@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Fast codebase recon that returns compressed context for handoff to other agents
+description: Use when you need fast codebase recon with compressed context for handoff to other agents
 tools: read, grep, find, ls, bash, zai_web_search, zai_web_reader
 ---
 

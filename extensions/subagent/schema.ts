@@ -30,17 +30,19 @@ export function buildSchema() {
 /**
  * Строит description для subagent tool.
  */
-export function buildDescription(bootAgents?: AgentConfig[]): string {
-	const parts = [
-		"Delegate tasks to specialized subagents with isolated context. Modes:",
-		"- single: { agent, task } — one agent, one task",
-		"- chain: { chain: [{ agent, task }] } — sequential, pass output via {previous}",
-	];
+export function buildDescription(): string {
+	return "Modes: single { agent, task } or chain { chain: [{ agent, task }] } for sequential workflows.";
+}
 
-	if (bootAgents && bootAgents.length > 0) {
-		const names = bootAgents.map((a) => a.name).join(", ");
-		parts.push(`Available agents: ${names}.`);
+/**
+ * Строит prompt guidelines для subagent tool — описания агентов для системного промпта.
+ */
+export function buildPromptGuidelines(agents: AgentConfig[]): string[] {
+	const lines: string[] = [];
+
+	for (const agent of agents) {
+		lines.push(`subagent "${agent.name}": ${agent.description}`);
 	}
 
-	return parts.join(" ");
+	return lines;
 }

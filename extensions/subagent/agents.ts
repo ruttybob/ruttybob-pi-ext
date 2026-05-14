@@ -11,11 +11,12 @@ export type AgentScope = "user" | "project" | "both";
 export interface AgentConfig {
 	name: string;
 	description: string;
+	enabled: boolean;
 	tools?: string[];
 	skills?: string[];
 	model?: string;
 	systemPrompt: string;
-	source: "user" | "project";
+	source: "builtin" | "user" | "project";
 	filePath: string;
 }
 
@@ -24,7 +25,7 @@ export interface AgentDiscoveryResult {
 	projectAgentsDir: string | null;
 }
 
-function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig[] {
+function loadAgentsFromDir(dir: string, source: "builtin" | "user" | "project"): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 
 	if (!fs.existsSync(dir)) {
@@ -69,6 +70,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
 		agents.push({
 			name: frontmatter.name,
 			description: frontmatter.description,
+			enabled: frontmatter.enabled !== "false",
 			tools: tools && tools.length > 0 ? tools : undefined,
 			skills: skills && skills.length > 0 ? skills : undefined,
 			model: frontmatter.model,
@@ -101,7 +103,13 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 	}
 }
 
+/**
+ * Директория builtin-агентов — рядом с agents.ts.
+ */
+const BUILTIN_AGENTS_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), "agents");
+
 export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
+	const builtinAgents = loadAgentsFromDir(BUILTIN_AGENTS_DIR, "builtin");
 	const userDir = path.join(getAgentDir(), "agents");
 	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
@@ -109,6 +117,11 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 	const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
 
 	const agentMap = new Map<string, AgentConfig>();
+
+	// Приоритет по возрастанию: builtin → user → project
+	for (const agent of builtinAgents) {
+		if (agent.enabled) agentMap.set(agent.name, agent);
+	}
 
 	if (scope === "both") {
 		for (const agent of userAgents) agentMap.set(agent.name, agent);

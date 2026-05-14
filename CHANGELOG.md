@@ -16,8 +16,16 @@
 - **pi-worktree**: новое расширение
 - **prompts**: добавлен `discuss.md`
 - **skills**: `finishing-a-development-branch`, `prompt-craft`, `using-git-worktrees`
+- **subagent**: promptGuidelines — описания агентов из frontmatter попадают в системный промпт
+- **subagent**: builtin-агенты из `extensions/subagent/agents/` — доступны всегда, перекрываются user/project
+- **subagent**: `enabled` в frontmatter для отключения builtin-агентов
+- **subagent**: brave/tavily/zai объединены в `web-search` (веб-поиск) и `code-search` (доки)
+- **subagent**: description агентов переведены в формат "Use when..."
+- **subagent**: worker → general (переименование файла)
+- **subagent**: promptSnippet для отображения в Available tools
 
 ### Removed
+- **subagent**: агенты brave, tavily, zai (заменены на web-search, code-search)
 - **old/**: устаревшие промпты, навыки и режимы планирования перенесены в `pi-projects/rutty-pi/old-from-ruttybob`
 
 ### Changed

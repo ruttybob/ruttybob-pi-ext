@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Creates implementation plans from context and requirements
+description: Use when you need to create an implementation plan or design from context and requirements
 tools: bash, read, grep, find, ls
 model: zai/glm-5.1:high
 ---
