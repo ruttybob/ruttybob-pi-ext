@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов
+- **skills**: `pi-extension-tester` — тестирование расширений pi через vitest-моки
+- **skills**: `project-rename` — переименование проекта по всей кодовой базе
 - **pi-powerline**: modern-режим футера на базе сегментов (presets, segments, separators, git-status, theme, colors, types)
 - **extensions**: AGENTS.md для всех 12 расширений (advisor, interactive-shell, llm-rename, pi-goal, pi-powerline, pi-quota, pi-review, pi-worktree, search-tools, session-recap, subagent, tools)
 - **old/skills**: verbalized-sampling skill
@@ -23,6 +26,13 @@
 - **subagent**: description агентов переведены в формат "Use when..."
 - **subagent**: worker → general (переименование файла)
 - **subagent**: promptSnippet для отображения в Available tools
+
+### Changed
+- **skills/code-cleanup**: добавлена фаза Discovery — аудит кодовой базы до начала рефакторинга
+
+### Fixed
+- **extensions**: заменены оставшиеся импорты `@mariozechner/pi-tui` → `@earendil-works/pi-tui` (breadcrumb, llm-rename)
+- **package.json**: зависимость `@mariozechner/pi-tui` → `@earendil-works/pi-tui`
 
 ### Removed
 - **subagent**: агенты brave, tavily, zai (заменены на web-search, code-search)

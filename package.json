@@ -30,12 +30,14 @@
 	},
 	"devDependencies": {
 		"@types/node": "^25.6.0",
+		"husky": "^9.1.7",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.5"
 	},
 	"scripts": {
 		"test": "vitest run",
 		"test:live": "vitest run --config vitest.config.live.ts",
-		"test:integration:side-agents": "node --test ../pi-side-agents/tests/integration/side-agents.integration.test.mjs"
+		"test:integration:side-agents": "node --test ../pi-side-agents/tests/integration/side-agents.integration.test.mjs",
+		"prepare": "husky"
 	}
 }

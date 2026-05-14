@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+
+# Pre-commit hook:
+# 1. Remind to update AGENTS.md when source code changes
+# 2. Run tests
+
+# ── AGENTS.md check ──
+
+staged_src=$(git diff --cached --name-only --diff-filter=ACMR -- 'src/*.ts' 'src/**/*.ts' 'extensions/**/*.ts' 'skills/**/*.ts' 'prompts/**/*.ts')
+staged_agents=$(git diff --cached --name-only -- 'AGENTS.md' '*/AGENTS.md')
+
+if [ -n "$staged_src" ] && [ -z "$staged_agents" ]; then
+  echo ""
+  echo "⚠️  Source files changed but no AGENTS.md is staged:"
+  echo "$staged_src" | sed 's/^/   /'
+  echo ""
+  echo "Update the relevant AGENTS.md if the changes affect architecture,"
+  echo "routing, design invariants, or module responsibilities."
+  echo ""
+  printf "Continue anyway? [y/N] " >&2
+  read -r answer
+  case "$answer" in
+    [yY]|[yY][eE][sS]) ;;
+    *) echo "Aborted. Stage AGENTS.md or update it, then retry." >&2; exit 1 ;;
+  esac
+fi
+
+# ── Tests ──
+
+echo ""
+echo "Running tests..."
+npm test

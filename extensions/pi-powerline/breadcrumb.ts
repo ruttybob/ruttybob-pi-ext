@@ -6,7 +6,7 @@
  */
 import { basename } from 'node:path';
 import type { ExtensionContext, Theme } from '@earendil-works/pi-coding-agent';
-import { visibleWidth } from '@mariozechner/pi-tui';
+import { visibleWidth } from '@earendil-works/pi-tui';
 import { hexFg } from './theme.js';
 
 // ═══════════════════════════════════════════════════════════════════════════

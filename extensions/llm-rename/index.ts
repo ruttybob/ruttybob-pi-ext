@@ -16,7 +16,7 @@ import {
 	type SelectItem,
 	SelectList,
 	Text,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import {
 	getConversationTranscript,
 	getFirstUserMessageText,
