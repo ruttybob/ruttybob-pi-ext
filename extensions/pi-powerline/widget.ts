@@ -7,8 +7,8 @@
  */
 import type { ExtensionAPI, ExtensionContext, Theme } from '@earendil-works/pi-coding-agent';
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
-import { getBreadcrumbData, renderBreadcrumbInfo } from './breadcrumb.ts';
-import { readPowerlineSettings } from './settings.ts';
+import { getBreadcrumbData, renderBreadcrumbInfo } from './breadcrumb.js';
+import { readPowerlineSettings } from './settings.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // live state

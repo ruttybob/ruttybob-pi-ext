@@ -3,17 +3,20 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type BreadcrumbMode = 'hide' | 'top' | 'inner';
+export type PowerlineStyle = 'classic' | 'modern';
 
 export interface PowerlineSettings {
   powerline: boolean;
   breadcrumb: BreadcrumbMode;
   footer: boolean;
+  style: PowerlineStyle;
 }
 
 const DEFAULTS: PowerlineSettings = {
   powerline: true,
   breadcrumb: 'inner',
   footer: true,
+  style: 'classic',
 };
 
 function readSettings(cwd: string): Record<string, unknown> {
@@ -41,6 +44,7 @@ export function readPowerlineSettings(cwd: string): PowerlineSettings {
       ? s.breadcrumb
       : DEFAULTS.breadcrumb) as BreadcrumbMode,
     footer: typeof s.footer === 'boolean' ? s.footer : DEFAULTS.footer,
+    style: (s.style === 'modern' ? 'modern' : DEFAULTS.style) as PowerlineStyle,
   };
 }
 

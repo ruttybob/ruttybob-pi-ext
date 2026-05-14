@@ -13,8 +13,9 @@ import {
   type Theme,
   type ThemeColor,
 } from '@earendil-works/pi-coding-agent';
-import { getBreadcrumbData, renderBreadcrumbInfo } from './breadcrumb.ts';
-import { readPowerlineSettings } from './settings.ts';
+import { getBreadcrumbData, SEP } from './breadcrumb.js';
+import { hexFg } from './theme.js';
+import { readPowerlineSettings } from './settings.js';
 
 /** Pure transform: add > prompt prefix and borders to rendered editor lines. */
 function renderPromptPrefix(
@@ -88,8 +89,14 @@ export class PromptPrefixEditor extends CustomEditor {
     if (lines.length < 3) return lines;
 
     const theme = currentTheme;
-    const color = (token: ThemeColor | undefined, text: string) =>
-      !theme || !token ? text : theme.fg(token, text);
+    const color = (token: ThemeColor | undefined, text: string) => {
+      if (!theme || !token) return text;
+      try {
+        return theme.fg(token, text);
+      } catch {
+        return text;
+      }
+    };
 
     // Bash mode: when text starts with !, switch to bashMode coloring
     const isBash = this.getText().trimStart().startsWith('!');
@@ -109,30 +116,67 @@ export class PromptPrefixEditor extends CustomEditor {
       tokens.indent ? color(tokens.indent, ' ') : ' ',
     );
 
-    // Embed widget info (model + folder) into the top border when mode is "inner"
+    // Embed widget info (model → folder) into the top border when mode is "inner"
     if (breadcrumbMode === 'inner') {
       const ctx = liveCtx;
       if (ctx && theme) {
         const data = getBreadcrumbData(ctx);
-        const infoPart = renderBreadcrumbInfo(data, theme, false);
+        const borderColored = color(tokens.border, '─');
 
-        const infoWidth = visibleWidth(infoPart);
-        let paddingLen = width - 3 - infoWidth;
-        let displayInfo = infoPart;
+        // Left part: model → folder
+        const leftPart =
+          hexFg('#d787af', data.modelText) +
+          theme.fg('dim', ' ' + SEP + ' ') +
+          hexFg('#00afaf', data.folderText);
+        const leftWidth = visibleWidth(leftPart);
 
-        if (paddingLen < 2) {
-          const minDashes = 2;
-          const availForInfo = width - 3 - minDashes;
-          if (availForInfo > 0) {
-            displayInfo = truncateToWidth(infoPart, availForInfo, '...');
-            paddingLen = width - 3 - visibleWidth(displayInfo);
+        if (data.sessionText) {
+          // Right part: session name
+          const rightPart = hexFg('#ffaf5f', data.sessionText);
+          const rightWidth = visibleWidth(rightPart);
+          const separator = theme.fg('dim', ' ');
+          const sepWidth = visibleWidth(separator);
+
+          const totalContentWidth = leftWidth + sepWidth + rightWidth;
+          let dashesLen = width - 5 - totalContentWidth;
+
+          if (dashesLen < 2) {
+            // Not enough space — truncate session name
+            const availForSession = width - 5 - leftWidth - sepWidth;
+            if (availForSession > 1) {
+              const truncatedSession = truncateToWidth(data.sessionText, availForSession, '…');
+              const truncatedRight = data.sessionText !== truncatedSession
+                ? hexFg('#ffaf5f', truncatedSession)
+                : rightPart;
+              const truncatedWidth = visibleWidth(truncatedSession);
+              dashesLen = width - 5 - leftWidth - sepWidth - truncatedWidth;
+              result[0] =
+                borderColored + ' ' + leftPart + ' ' + color(tokens.border, '─'.repeat(Math.max(0, dashesLen))) + separator + truncatedRight + ' ' + borderColored;
+            } else {
+              // Very narrow — just left part
+              dashesLen = width - 3 - leftWidth;
+              result[0] =
+                borderColored + ' ' + leftPart + ' ' + color(tokens.border, '─'.repeat(Math.max(0, dashesLen)));
+            }
+          } else {
+            result[0] =
+              borderColored + ' ' + leftPart + ' ' + color(tokens.border, '─'.repeat(dashesLen)) + separator + rightPart + ' ' + borderColored;
           }
-        }
-
-        if (paddingLen >= 0) {
-          const borderColored = color(tokens.border, '─');
-          result[0] =
-            borderColored + ' ' + displayInfo + ' ' + color(tokens.border, '─'.repeat(paddingLen));
+        } else {
+          // No session name — just left part
+          let dashesLen = width - 3 - leftWidth;
+          if (dashesLen < 2) {
+            const availForInfo = width - 5;
+            const truncatedLeft = availForInfo > 0
+              ? truncateToWidth(leftPart, availForInfo, '...')
+              : leftPart;
+            dashesLen = width - 3 - visibleWidth(truncatedLeft);
+            result[0] =
+              borderColored + ' ' + truncatedLeft + ' ' + color(tokens.border, '─'.repeat(Math.max(0, dashesLen)));
+          } else {
+            result[0] =
+              borderColored + ' ' + leftPart + ' ' + color(tokens.border, '─'.repeat(dashesLen));
+          }
         }
       }
     }

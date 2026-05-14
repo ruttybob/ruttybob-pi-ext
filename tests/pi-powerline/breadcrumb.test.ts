@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  hexFg,
   ICON_FOLDER,
   ICON_MODEL,
   renderBreadcrumbInfo,
   SEP,
   withIcon,
 } from '../../extensions/pi-powerline/breadcrumb.js';
+import { hexFg } from '../../extensions/pi-powerline/theme.js';
 
 describe('breadcrumb — withIcon', () => {
   it('returns icon + space + text when icon is given', () => {

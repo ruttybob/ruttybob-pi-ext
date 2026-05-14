@@ -16,7 +16,15 @@ import { join } from 'node:path';
 import type { AssistantMessage } from '@earendil-works/pi-ai';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
-import { readPowerlineSettings } from './settings.ts';
+import { readPowerlineSettings } from './settings.js';
+import { getPreset } from './presets.js';
+import { getSeparator } from './separators.js';
+import { SEP_ANSI } from './colors.js';
+import { renderSegment } from './segments.js';
+import { getGitStatus } from './git-status.js';
+import type { SegmentContext, StatusLineSegmentId } from './types.js';
+import { hasNerdFonts, withIcon } from './breadcrumb.js';
+import { hexFg } from './theme.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // auto-compact detection (nested under compaction.enabled, not powerline)
@@ -57,20 +65,9 @@ function formatTokens(count: number): string {
 // think level display (mirrors widget.ts style)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function hasNerdFonts(): boolean {
-  if (process.env.POWERLINE_NERD_FONTS === '1') return true;
-  if (process.env.POWERLINE_NERD_FONTS === '0') return false;
-  if (process.env.GHOSTTY_RESOURCES_DIR) return true;
-  const term = (process.env.TERM_PROGRAM || '').toLowerCase();
-  return ['iterm', 'wezterm', 'kitty', 'ghostty', 'alacritty'].some((t) => term.includes(t));
-}
 
 const ICON_THINK = hasNerdFonts() ? '' : '';
 const ICON_GIT = hasNerdFonts() ? '' : '⎇';
-
-function withIcon(icon: string, text: string): string {
-  return icon ? `${icon} ${text}` : text;
-}
 
 const THINK_LABELS: Record<string, string> = {
   minimal: 'min',
@@ -126,15 +123,6 @@ let autoCompactEnabled = true;
 // ═══════════════════════════════════════════════════════════════════════════
 // footer renderer
 // ═══════════════════════════════════════════════════════════════════════════
-
-// hex → ANSI true color (for git branch, not using pi theme tokens)
-function hexFg(hex: string, text: string): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `\x1b[38;2;${r};${g};${b}m${text}`;
-}
 
 /** Sanitize text for single-line status display. */
 function sanitizeStatusText(text: string): string {
@@ -197,7 +185,9 @@ function createFooterRenderer(ctx: ExtensionContext) {
           coreContextUsage?.tokens ?? (latestUsage ? getUsageTokenTotal(latestUsage) : null);
         const contextWindow = coreContextUsage?.contextWindow ?? ctx.model?.contextWindow ?? 0;
         const contextPercent =
-          contextTokens !== null ? ((contextTokens / contextWindow) * 100).toFixed(1) : '?';
+          contextTokens !== null && contextWindow > 0
+          ? ((contextTokens / contextWindow) * 100).toFixed(1)
+          : '?';
 
         // ── git branch (leftmost, before stats) ──
         const branch = footerData.getGitBranch();
@@ -320,6 +310,168 @@ function createFooterRenderer(ctx: ExtensionContext) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// modern footer renderer (segment-based, from yapi-line)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildSegmentContext(
+	ctx: ExtensionContext,
+	theme: any,
+	sessionStartTime: number,
+	footerData: any,
+): SegmentContext {
+	const presetDef = getPreset();
+	const colors = presetDef.colors ?? {};
+
+	let totalInput = 0, totalOutput = 0, totalCacheRead = 0, totalCacheWrite = 0, totalCost = 0;
+	let lastAssistant: AssistantMessage | undefined;
+
+	for (const e of ctx.sessionManager.getEntries()) {
+		if (e.type !== 'message' || e.message.role !== 'assistant') continue;
+		const m = e.message as AssistantMessage;
+		if (m.stopReason === 'error' || m.stopReason === 'aborted') continue;
+		totalInput += m.usage.input;
+		totalOutput += m.usage.output;
+		totalCacheRead += m.usage.cacheRead;
+		totalCacheWrite += m.usage.cacheWrite;
+		totalCost += m.usage.cost.total;
+		lastAssistant = m;
+	}
+
+	if (isStreaming && liveAssistantUsage) {
+		totalInput += liveAssistantUsage.input;
+		totalOutput += liveAssistantUsage.output;
+		totalCacheRead += liveAssistantUsage.cacheRead;
+		totalCacheWrite += liveAssistantUsage.cacheWrite;
+		totalCost += liveAssistantUsage.cost.total;
+		if (!lastAssistant && getUsageTokenTotal(liveAssistantUsage) > 0) {
+			lastAssistant = { role: 'assistant', usage: liveAssistantUsage } as AssistantMessage;
+		}
+	}
+
+	const latestUsage = isStreaming ? (liveAssistantUsage ?? lastAssistant?.usage) : lastAssistant?.usage;
+	const coreCtx = isStreaming && liveAssistantUsage ? null : ctx.getContextUsage();
+	const contextTokens = coreCtx?.tokens ?? (latestUsage ? getUsageTokenTotal(latestUsage) : null);
+	const contextWindow = coreCtx?.contextWindow ?? ctx.model?.contextWindow ?? 0;
+	const contextPercent = contextTokens !== null && contextWindow > 0
+		? (contextTokens / contextWindow) * 100
+		: 0;
+
+	const gitBranch = footerData.getGitBranch() as string | null;
+	const gitStatus = getGitStatus(gitBranch);
+	const extensionStatuses = footerData.getExtensionStatuses() as Map<string, string>;
+
+	const usingSubscription = ctx.model ? ctx.modelRegistry.isUsingOAuth(ctx.model) : false;
+
+	return {
+		model: ctx.model ? { id: ctx.model.id, name: ctx.model.name, reasoning: ctx.model.reasoning, contextWindow: ctx.model.contextWindow } : undefined,
+		thinkingLevel: liveThinkLevel,
+		sessionId: ctx.sessionManager?.getSessionId?.(),
+		usageStats: { input: totalInput, output: totalOutput, cacheRead: totalCacheRead, cacheWrite: totalCacheWrite, cost: totalCost },
+		contextPercent,
+		contextWindow,
+		autoCompactEnabled,
+		usingSubscription,
+		sessionStartTime,
+		cwd: ctx.sessionManager?.getCwd?.() ?? ctx.cwd ?? process.cwd(),
+		git: gitStatus,
+		extensionStatuses: extensionStatuses ?? new Map(),
+		options: presetDef.segmentOptions ?? {},
+		theme,
+		colors,
+	};
+}
+
+function renderSegmentWithWidth(segId: StatusLineSegmentId, ctx: SegmentContext) {
+	const r = renderSegment(segId, ctx);
+	if (!r.visible || !r.content) return { content: '', width: 0, visible: false };
+	return { content: r.content, width: visibleWidth(r.content), visible: true };
+}
+
+function buildContentFromParts(parts: string[]): string {
+	if (parts.length === 0) return '';
+	const presetDef = getPreset();
+	const sepDef = getSeparator(presetDef.separator);
+	const sepAnsi = SEP_ANSI;
+	const ansiReset = '\x1b[0m';
+	return ' ' + parts.join(` ${sepAnsi}${sepDef.left}${ansiReset} `) + ansiReset + ' ';
+}
+
+function computeResponsiveLayout(ctx: SegmentContext, availableWidth: number): { top: string; secondary: string } {
+	const presetDef = getPreset();
+	const sepDef = getSeparator(presetDef.separator);
+	const sepWidth = visibleWidth(sepDef.left) + 2;
+
+	const primaryIds = [...presetDef.leftSegments, ...presetDef.rightSegments];
+	const secondaryIds = presetDef.secondarySegments ?? [];
+
+	// render all segments, collect visible ones
+	const rendered: { content: string; width: number }[] = [];
+	for (const segId of [...primaryIds, ...secondaryIds]) {
+		const { content, width, visible } = renderSegmentWithWidth(segId, ctx);
+		if (visible) rendered.push({ content, width });
+	}
+
+	if (rendered.length === 0) return { top: '', secondary: '' };
+
+	const baseOverhead = 2;
+	let currentWidth = baseOverhead;
+	const topParts: string[] = [];
+	const overflow: { content: string; width: number }[] = [];
+	let overflowed = false;
+
+	for (const seg of rendered) {
+		const needed = seg.width + (topParts.length > 0 ? sepWidth : 0);
+		if (!overflowed && currentWidth + needed <= availableWidth) {
+			topParts.push(seg.content);
+			currentWidth += needed;
+		} else {
+			overflowed = true;
+			overflow.push(seg);
+		}
+	}
+
+	const secParts: string[] = [];
+	let secWidth = baseOverhead;
+	for (const seg of overflow) {
+		const needed = seg.width + (secParts.length > 0 ? sepWidth : 0);
+		if (secWidth + needed <= availableWidth) {
+			secParts.push(seg.content);
+			secWidth += needed;
+		} else break;
+	}
+
+	return {
+		top: buildContentFromParts(topParts),
+		secondary: buildContentFromParts(secParts),
+	};
+}
+
+function createModernFooterRenderer(ctx: ExtensionContext) {
+	const sessionStartTime = Date.now();
+
+	return (tui: any, theme: any, footerData: any) => {
+		liveTui = tui;
+		const unsubBranch = footerData.onBranchChange(() => tui.requestRender());
+
+		return {
+			dispose() {
+				liveTui = null;
+				unsubBranch();
+			},
+			invalidate() {},
+			render(width: number): string[] {
+				const segCtx = buildSegmentContext(ctx, theme, sessionStartTime, footerData);
+				const layout = computeResponsiveLayout(segCtx, width);
+				const lines: string[] = [];
+				if (layout.top) lines.push(layout.top);
+				if (layout.secondary) lines.push(layout.secondary);
+				return lines;
+			},
+		};
+	};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // module registration
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -329,7 +481,12 @@ export function registerFooter(pi: ExtensionAPI) {
   function enable(ctx: ExtensionContext) {
     enabled = true;
     liveThinkLevel = pi.getThinkingLevel();
-    ctx.ui.setFooter(createFooterRenderer(ctx));
+    const s = readPowerlineSettings(ctx.cwd);
+    if (s.style === 'modern') {
+      ctx.ui.setFooter(createModernFooterRenderer(ctx));
+    } else {
+      ctx.ui.setFooter(createFooterRenderer(ctx));
+    }
   }
 
   function disable(ctx: ExtensionContext) {

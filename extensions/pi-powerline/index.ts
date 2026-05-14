@@ -46,6 +46,16 @@ export default function (pi: ExtensionAPI) {
           label: 'footer:off',
           description: 'Disable custom footer',
         },
+        {
+          value: 'style:modern',
+          label: 'style:modern',
+          description: 'Segment-based status bar with presets',
+        },
+        {
+          value: 'style:classic',
+          label: 'style:classic',
+          description: 'Classic inline status bar',
+        },
       ];
       if (!prefix) return items;
       return items.filter((i) => i.value.startsWith(prefix));
@@ -65,11 +75,12 @@ export default function (pi: ExtensionAPI) {
 
       // show status
       if (arg === 'info') {
-        const { powerline, breadcrumb, footer } = readPowerlineSettings(ctx.cwd);
+        const { powerline, breadcrumb, footer, style } = readPowerlineSettings(ctx.cwd);
         const lines = [
           `powerline: ${powerline ? 'on' : 'off'}`,
           `breadcrumb: ${breadcrumb}`,
           `footer: ${footer ? 'on' : 'off'}`,
+          `style: ${style}`,
         ];
         ctx.ui.notify(lines.join('\n'), 'info');
         return;
@@ -108,6 +119,16 @@ export default function (pi: ExtensionAPI) {
           writePowerlineSetting(ctx.cwd, 'footer', val === 'on');
           pi.events.emit('powerline_settings_changed', ctx);
           msg = `footer → ${val}`;
+          break;
+        }
+        case 'style': {
+          if (val !== 'classic' && val !== 'modern') {
+            ctx.ui.notify('style must be: classic or modern', 'warning');
+            return;
+          }
+          writePowerlineSetting(ctx.cwd, 'style', val);
+          pi.events.emit('powerline_settings_changed', ctx);
+          msg = `style → ${val}`;
           break;
         }
         default:
