@@ -17,6 +17,9 @@
 - **prompts**: добавлен `discuss.md`
 - **skills**: `finishing-a-development-branch`, `prompt-craft`, `using-git-worktrees`
 
+### Removed
+- **old/**: устаревшие промпты, навыки и режимы планирования перенесены в `pi-projects/rutty-pi/old-from-ruttybob`
+
 ### Changed
 - **pi-powerline**: рефакторинг — вынос hexFg в theme.ts, общие типы/цвета, новая breadcrumb-раскладка с session name
 - **subagent**: указание model в frontmatter для planner (zai/glm-5.1:high), reviewer (zai/glm-5.1:high), worker (zai/glm-5.1)
