@@ -5,9 +5,9 @@ node_modules/
 .pi/
 
 # Планы и черновики агентов
-.plans/
 .scratch/
 .issues/
+REFACTOR.md
 # Evolution memory — локальная история evolver
 memory/
 

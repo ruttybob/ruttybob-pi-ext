@@ -21,6 +21,11 @@
 - **old/**: устаревшие промпты, навыки и режимы планирования перенесены в `pi-projects/rutty-pi/old-from-ruttybob`
 
 ### Changed
+- **prompts**: обновлён `discuss.md` — упрощён до structured discussion без verbalized sampling
+- **prompts**: обновлён `modernize-and-refactor.md` — добавлен `$@` для injection, уточнены правила
+- **.gitignore**: убран `.plans/` из gitignore, добавлен `REFACTOR.md`
+
+### Changed
 - **search-tools/vision**: унифицирована сигнатура `onUpdate` во всех 5 vision-инструментах — заменён inline-тип на `AgentToolUpdateCallback<unknown>`
 
 ### Changed

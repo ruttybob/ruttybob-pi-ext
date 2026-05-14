@@ -1,43 +1,39 @@
 ---
-description: Structured multi-perspective discussion with Verbalized Sampling
+description: Structured discussion that challenges assumptions and finds gaps in thinking
 argument-hint: "<discussion topic>"
 ---
 
 $@
 
-Run a multi-perspective discussion on the topic.
+Discuss the topic. Do not round off — dig into contradictions and weak spots.
 
 **Before writing** — if context is unclear, use `questionnaire`. Do not guess.
 
-## Verbalized Sampling
+## Approach
 
-Generate 5 distinct perspectives to avoid mode collapse. Vary angles: mainstream, contrarian, practical, strategic, unconventional. Keep probabilities below 0.30.
-
-```
-<response>
-  <text>[viewpoint summary]</text>
-  <probability>[0.0–1.0]</probability>
-</response>
-```
-
-For each perspective — evidence, blind spots, interactions with others.
+- Find the core tension or trade-off — start there.
+- Challenge the strongest version of each side (steel man, not straw man).
+- Surface assumptions that nobody states out loud.
+- Where evidence is missing, say so — do not fill gaps with speculation.
 
 ## Output
 
 ```markdown
 # Discussion: <topic>
 
-## Perspectives
-### 1. <title> (p=<probability>)
-<summary + analysis>
+## Core tension
+<1–2 sentences: what makes this genuinely hard or contested?>
 
-### 2. <title> (p=<probability>)
+## Arguments
+### <title>
+<the actual argument, not a label>
+
 ...
 
-## Synthesis
-- **Decisions:** ...
-- **Open questions:** ...
-- **Next steps:** ...
+## Where we actually stand
+- **Resolved:** ...
+- **Unresolved:** ...
+- **What would change my mind:** ...
 ```
 
 Respond directly — do not save to jot.
