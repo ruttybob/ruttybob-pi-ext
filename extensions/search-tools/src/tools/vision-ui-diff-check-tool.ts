@@ -1,3 +1,4 @@
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { extractVisionText } from '../services/vision.js';
 import { truncateText } from '../utils/truncation.js';
@@ -28,8 +29,8 @@ export function createVisionUiDiffCheckTool(service: {
         actual_image_source: string;
         prompt: string;
       },
-      _signal?: unknown,
-      onUpdate?: (update: { content: Array<{ type: "text"; text: string }>; details: unknown }) => void,
+      _signal: AbortSignal | undefined,
+      onUpdate: AgentToolUpdateCallback<unknown> | undefined,
     ) {
       if (onUpdate) {
         onUpdate({ content: [{ type: 'text' as const, text: `🔎 Vision — comparing UI screenshots...` }], details: undefined });

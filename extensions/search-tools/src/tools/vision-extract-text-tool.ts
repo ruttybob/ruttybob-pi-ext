@@ -1,3 +1,4 @@
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { extractVisionText } from '../services/vision.js';
 import { truncateText } from '../utils/truncation.js';
@@ -23,8 +24,8 @@ export function createVisionExtractTextTool(service: {
     async execute(
       _toolCallId: string,
       params: { image_source: string; prompt: string; programming_language?: string },
-      _signal?: unknown,
-      onUpdate?: (update: { content: Array<{ type: "text"; text: string }>; details: unknown }) => void,
+      _signal: AbortSignal | undefined,
+      onUpdate: AgentToolUpdateCallback<unknown> | undefined,
     ) {
       const langHint = params.programming_language ? ` (${params.programming_language})` : '';
       if (onUpdate) {

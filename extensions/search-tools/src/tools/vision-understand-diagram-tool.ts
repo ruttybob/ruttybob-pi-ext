@@ -1,3 +1,4 @@
+import type { AgentToolUpdateCallback } from '@earendil-works/pi-coding-agent';
 import { Type } from '@sinclair/typebox';
 import { extractVisionText } from '../services/vision.js';
 import { truncateText } from '../utils/truncation.js';
@@ -23,8 +24,8 @@ export function createVisionUnderstandDiagramTool(service: {
     async execute(
       _toolCallId: string,
       params: { image_source: string; prompt: string; diagram_type?: string },
-      _signal?: unknown,
-      onUpdate?: (update: { content: Array<{ type: "text"; text: string }>; details: unknown }) => void,
+      _signal: AbortSignal | undefined,
+      onUpdate: AgentToolUpdateCallback<unknown> | undefined,
     ) {
       const typeHint = params.diagram_type ? ` (${params.diagram_type})` : '';
       if (onUpdate) {

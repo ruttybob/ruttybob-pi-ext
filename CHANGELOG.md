@@ -21,6 +21,9 @@
 - **old/**: устаревшие промпты, навыки и режимы планирования перенесены в `pi-projects/rutty-pi/old-from-ruttybob`
 
 ### Changed
+- **search-tools/vision**: унифицирована сигнатура `onUpdate` во всех 5 vision-инструментах — заменён inline-тип на `AgentToolUpdateCallback<unknown>`
+
+### Changed
 - **pi-powerline**: рефакторинг — вынос hexFg в theme.ts, общие типы/цвета, новая breadcrumb-раскладка с session name
 - **subagent**: указание model в frontmatter для planner (zai/glm-5.1:high), reviewer (zai/glm-5.1:high), worker (zai/glm-5.1)
 - **llm-rename**: лимит слов в названии сессии уменьшен с 2-6 до 2-3
