@@ -18,6 +18,7 @@
 
 ### Changed
 - **test**: обновлены стабы `pi-coding-agent` и `pi-tui` под новый API (registerCommand, getSystemPrompt, Markdown.render, MarkdownTheme)
+- **git-commit**: версия тегируется после каждого коммита, а не один раз в конце сессии; `chore`/`docs`/`test` не предлагают тег по умолчанию
 
 ### Added
 - **husky**: pre-commit хук — напоминание обновить AGENTS.md + запуск тестов

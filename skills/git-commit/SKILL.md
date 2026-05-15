@@ -42,19 +42,22 @@ Before every commit, update `CHANGELOG.md`:
 
 ## Version Tagging
 
-After each commit:
+Offer a version tag after **every individual commit**, not once at the end of the session. Each tag reflects only the commit it follows.
 
-1. Determine the bump level based on the change type:
+1. Get existing tags: `git tag --sort=-v:refname | head -5`
+2. Determine the bump level from **this commit's** type:
    - `fix:` → patch
    - `feat:` → minor
+   - `refactor:` → patch (only if it changes public API or behavior; otherwise skip)
+   - `chore:`, `docs:`, `test:` → skip by default
    - Breaking changes → major
-2. Get existing tags: `git tag --sort=-v:refname | head -5`
-3. Calculate the new version from the latest tag.
-4. Ask the user for confirmation via `questionnaire`:
+3. If the commit type does not warrant a version bump (e.g. `chore`, `docs`, `test`, internal `refactor`), skip tagging silently — do not ask the user.
+4. Otherwise, calculate the new version from the latest tag and ask the user via `questionnaire`:
    - Show the proposed version (e.g. `v1.2.3`) and bump level.
    - Options: confirm / skip.
 5. If confirmed — create an annotated tag: `git tag -a v<version> -m "v<version>"`
 6. If skipped — do nothing.
+7. After tagging (or skipping), proceed to the next commit in the group. Repeat from step 1 for each subsequent commit.
 
 ## Steps
 
